@@ -7,425 +7,520 @@ import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.ss.usermodel.*;
 
 import java.util.List;
+import java.util.function.Function;
 
 public abstract class ReportService {
 
+    private final HSSFSheet reportSheet;
+    private final HSSFSheet basicValuesSheet;
+
     protected final List<DocumentWrapper> documents;
-
-    protected final HSSFSheet reportSheet;
-    protected final HSSFSheet ratiosSheet;
-    protected final ReportStyle style;
+    protected final int documentCount;
+    protected final ReportStyle reportStyle;
     protected final HSSFWorkbook workbook;
-
     protected final HSSFDataFormat numberFormatter;
-    protected CellStyle NumberBottomTop;
-    protected CellStyle PercentStyleBoldBottomTop;
+    protected int rowNumber;
+    protected int columnNumber;
 
     public ReportService(
-            HSSFWorkbook workbook, HSSFSheet reportSheet, HSSFSheet ratiosSheet,
-            List<DocumentWrapper> documents, ReportStyle style, HSSFDataFormat numberFormatter) {
+            HSSFWorkbook workbook, HSSFSheet reportSheet, HSSFSheet basicValuesSheet,
+            List<DocumentWrapper> documents, ReportStyle reportStyle, HSSFDataFormat numberFormatter) {
         this.workbook = workbook;
         this.reportSheet = reportSheet;
-        this.ratiosSheet = ratiosSheet;
+        this.basicValuesSheet = basicValuesSheet;
         this.documents = documents;
-        this.style = style;
+        this.reportStyle = reportStyle;
         this.numberFormatter = numberFormatter;
+        this.rowNumber = 0;
+        this.columnNumber = 0;
+        this.documentCount = documents.size();
 
         initializeStyles();
     }
 
-    public abstract void create();
-    abstract void initializeStyles();
-
-    protected <T> void addCell(int rowNumber, int cellNumber, T value) {
-        addCell(rowNumber, cellNumber, value, null, null);
+    public void create() {
+        setupBasicValuesSheet();
+        createInternal();
     }
 
-    protected <T> void addCell(int rowNumber, int cellNumber, T value, HSSFCellStyle style) {
-        addCell(rowNumber, cellNumber, value, style, null);
+    protected abstract void createInternal();
+
+    protected abstract void initializeStyles();
+
+    //<editor-fold desc="row utilities">
+
+    private Row addRow() {
+        return addRow(0);
     }
 
-    protected <T> void addCell(int rowNumber, int cellNumber, T value, HSSFCellStyle style, CellType cellType) {
-        Row row = reportSheet.getRow(rowNumber) == null
-                ? reportSheet.createRow(rowNumber)
-                : reportSheet.getRow(rowNumber);
+    private Row addRow(int initialColumnNumber) {
+        Row row = reportSheet.createRow(rowNumber);
 
-        Cell cell = cellType == null
-                ? row.createCell(cellNumber)
-                : row.createCell(cellNumber, cellType);
+        rowNumber++;
+        columnNumber = initialColumnNumber;
 
-        if (value != null) {
-            if (value instanceof Integer) {
-                cell.setCellValue((Integer) value);
-            } else if (value instanceof Long) {
-                cell.setCellValue((Long) value);
-            } else if (value instanceof Double) {
-                cell.setCellValue((Double) value);
-            } else {
-                cell.setCellValue((String) value);
-            }
+        return row;
+    }
+
+    protected void skipRow() {
+        rowNumber++;
+    }
+
+    //</editor-fold>
+
+    //<editor-fold desc="cell utilities">
+
+    private <T> void addCell(Row row, T value, HSSFCellStyle style) {
+        Cell cell = row.createCell(columnNumber);
+
+        if (style != null)
+            cell.setCellStyle(style);
+
+        if (value instanceof Integer) {
+            cell.setCellValue((Integer) value);
+        } else if (value instanceof Long) {
+            cell.setCellValue((Long) value);
+        } else if (value instanceof Double) {
+            cell.setCellValue((Double) value);
+        } else {
+            cell.setCellValue((String) value);
         }
 
-        if (style != null) {
-            cell.setCellStyle(style);
+        columnNumber++;
+    }
+
+    private void skipCell() {
+        skipCell(1);
+    }
+
+    private void skipCell(int skipNumber) {
+        columnNumber += skipNumber;
+    }
+
+    //</editor-fold>
+
+    //<editor-fold desc="addCompareReportRow">
+
+    protected void addCompareReportRow(String rowName) {
+        addCompareReportRow(rowName, null, null, d -> null, null, 0);
+    }
+
+    protected <T> void addCompareReportRow(String rowName, Function<DocumentWrapper, T> valueFunction) {
+        addCompareReportRow(rowName, valueFunction, null, d -> null, null, 2);
+    }
+
+    protected <T> void addCompareReportRow(
+            String rowName, Function<DocumentWrapper, T> valueFunction, HSSFCellStyle valueStyle) {
+        addCompareReportRow(rowName, valueFunction, CellType.NUMERIC, d -> valueStyle, null, 1);
+    }
+
+    protected <T> void addCompareReportRow(
+            String rowName, Function<DocumentWrapper, T> valueFunction,
+            HSSFCellStyle valueStyle, HSSFCellStyle titleStyle) {
+        addCompareReportRow(rowName, valueFunction, CellType.NUMERIC, d -> valueStyle, titleStyle, 1);
+    }
+
+    protected <T> void addCompareReportRow(
+            String rowName, Function<DocumentWrapper, T> valueFunction,
+            CellType cellType, Function<DocumentWrapper, HSSFCellStyle> valueStyleFunction,
+            HSSFCellStyle titleStyle, int initialColumnIndex) {
+        Row row = addRow(initialColumnIndex);
+        Cell titleCell = row.createCell(initialColumnIndex);
+
+        titleCell.setCellValue(rowName);
+
+        if (titleStyle != null)
+            titleCell.setCellStyle(titleStyle);
+
+        if (valueFunction != null) {
+            int columnIndex = initialColumnIndex + 1;
+
+            for (DocumentWrapper document : documents) {
+                Cell cell = cellType == null
+                        ? row.createCell(columnIndex)
+                        : row.createCell(columnIndex, cellType);
+
+                T value = valueFunction.apply(document);
+
+                if (value instanceof Integer) {
+                    cell.setCellValue((Integer) value);
+                } else if (value instanceof Long) {
+                    cell.setCellValue((Long) value);
+                } else if (value instanceof Double) {
+                    cell.setCellValue((Double) value);
+                } else {
+                    cell.setCellValue((String) value);
+                }
+
+                if (reportStyle != null)
+                    cell.setCellStyle(valueStyleFunction.apply(document));
+
+                columnIndex++;
+            }
+        }
+    }
+
+    //</editor-fold>
         }
     }
 
     protected double getAndereVorderingen(int index) {
         return Double.parseDouble(documents.get(index).getPropertiesMap()
+
+    protected double getAndereVorderingen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.BAVorderingenHoogstens1JaarOverigeVorderingen));
     }
 
-    protected double getAantalWerknemersOpEindeBoekjaar(int index) {
+    protected double getAantalWerknemersOpEindeBoekjaar(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.SBAantalWerknemersOpEindeBoekjaar));
+                document.getPropertiesMap().get(PropertyName.SBAantalWerknemersOpEindeBoekjaar));
     }
 
-    protected double getAantalBediendenOpEindeBoekjaar(int index) {
+    protected double getAantalBediendenOpEindeBoekjaar(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.SBAantalBediendenOpEindeBoekjaar));
+                document.getPropertiesMap().get(PropertyName.SBAantalBediendenOpEindeBoekjaar));
     }
 
-    protected double getAantalArbeiderssOpEindeBoekjaar(int index) {
+    protected double getAantalArbeiderssOpEindeBoekjaar(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.SBAantalArbeidersOpEindeBoekjaar));
+                document.getPropertiesMap().get(PropertyName.SBAantalArbeidersOpEindeBoekjaar));
     }
 
-    protected double getPersoneelskostenUitzendkrachten(int index) {
+    protected double getPersoneelskostenUitzendkrachten(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.SBPersoneelskostenUitzendkrachten));
+                document.getPropertiesMap().get(PropertyName.SBPersoneelskostenUitzendkrachten));
     }
 
-    protected double getGepresteerdeUrenUitzendkrachten(int index) {
+    protected double getGepresteerdeUrenUitzendkrachten(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.SBGepresteerdeUrenUitzendkrachten));
+                document.getPropertiesMap().get(PropertyName.SBGepresteerdeUrenUitzendkrachten));
     }
 
-    protected double getGemiddeldeAantalFTEUitzendkrachten(int index) {
+    protected double getGemiddeldeAantalFTEUitzendkrachten(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.SBGemiddeldAantalFTEUitzendkrachten));
+                document.getPropertiesMap().get(PropertyName.SBGemiddeldAantalFTEUitzendkrachten));
     }
 
-    protected double getSBPersoneelsKosten(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.SBPersoneelskosten));
+    protected double getSBPersoneelsKosten(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.SBPersoneelskosten));
     }
 
-    protected double getGepresteerdeUren(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.SBGepresteerdeUren));
+    protected double getGepresteerdeUren(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.SBGepresteerdeUren));
     }
 
-    protected double getGemiddeldeAantalFTE(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.SBGemiddeldeFTE));
+    protected double getGemiddeldeAantalFTE(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.SBGemiddeldeFTE));
     }
 
-    protected double getLiquideMiddelen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BALiquideMiddelen));
+    protected double getLiquideMiddelen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BALiquideMiddelen));
     }
 
-    protected double getTotaleActiva(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BATotaalActiva));
+    protected double getTotaleActiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BATotaalActiva));
     }
 
-    protected double getReserves(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BPReserves));
+    protected double getReserves(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPReserves));
     }
 
-    protected double getOverdragenWinstVerlies(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BPOvergedragenWinstVerlies));
+    protected double getOverdragenWinstVerlies(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPOvergedragenWinstVerlies));
     }
 
-    protected double getBedrijfsOpbrengsten(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfsopbrengsten));
+    protected double getBedrijfsOpbrengsten(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBedrijfsopbrengsten));
     }
 
-    protected double getBedrijfsOpbrengstenOmzet(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfsopbrengstenOmzet));
+    protected double getBedrijfsOpbrengstenOmzet(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBedrijfsopbrengstenOmzet));
     }
 
-    protected double getBedrijfswinstVerlies(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfsWinstVerlies));
+    protected double getBedrijfswinstVerlies(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBedrijfsWinstVerlies));
     }
 
-    protected double getWinstVerliesBoekjaar(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRWinstVerliesBoekjaar));
+    protected double getWinstVerliesBoekjaar(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRWinstVerliesBoekjaar));
     }
 
-    protected double getProvisies(int index) {
+    protected double getProvisies(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.BPVoorzieningenUitgesteldeBelastingen));
+                document.getPropertiesMap().get(PropertyName.BPVoorzieningenUitgesteldeBelastingen));
     }
 
-    protected double getFinancieringsLast(int index) {
-        return (getKorteTermijnFinancieleSchulden(index) + getLangeTermijnFinancieleSchulden(index)) / getEBITDA(index);
+    protected double getFinancieringsLast(DocumentWrapper document) {
+        return (getKorteTermijnFinancieleSchulden(document) + getLangeTermijnFinancieleSchulden(document)) / getEBITDA(document);
     }
 
-    protected double getCash(int index) {
-        return getLiquideMiddelen(index)
-                + Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BAOverlopendeRekeningen));
+    protected double getCash(DocumentWrapper document) {
+        return getLiquideMiddelen(document)
+                + Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAOverlopendeRekeningen));
     }
 
-    protected double getVoorraadrotatie(int index) {
-        return getVoorradenEnBestellingenInUitvoering(index) / getBedrijfsOpbrengsten(index) * 365;
+    protected double getVoorraadrotatie(DocumentWrapper document) {
+        return getVoorradenEnBestellingenInUitvoering(document) / getBedrijfsOpbrengsten(document) * 365;
     }
 
-    protected double getKlantenKrediet(int index) {
-        return getHandelsvorderingen(index) / getBedrijfsOpbrengsten(index) * 365;
+    protected double getKlantenKrediet(DocumentWrapper document) {
+        return getHandelsvorderingen(document) / getBedrijfsOpbrengsten(document) * 365;
     }
 
-    protected double getLeveranciersKrediet(int index) {
-        return getLeveranciers(index) / getBedrijfsOpbrengsten(index) * 365;
+    protected double getLeveranciersKrediet(DocumentWrapper document) {
+        return getLeveranciers(document) / getBedrijfsOpbrengsten(document) * 365;
     }
 
-    protected double getCashFlow(int index) {
-        return getWinstVerliesBoekjaar(index) + getAfschrijvingen(index);
+    protected double getCashFlow(DocumentWrapper document) {
+        return getWinstVerliesBoekjaar(document) + getAfschrijvingen(document);
     }
 
-    protected double getWaardeVermindering(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(
+    protected double getWaardeVermindering(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(
                 PropertyName.RRBedrijfskostenWaardeverminderingenVoorradenBestellingenUitvoeringHandelsvorderingenToevoegingenTerugnemingen));
     }
 
-    protected double getBelastingen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRBelastingenOpResultaat))
+    protected double getBelastingen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBelastingenOpResultaat))
                 - Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.RROntrekkingenUitgesteldeBelastingen))
+                document.getPropertiesMap().get(PropertyName.RROntrekkingenUitgesteldeBelastingen))
                 + Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.RROverboekingUitgesteldeBelastingen));
+                document.getPropertiesMap().get(PropertyName.RROverboekingUitgesteldeBelastingen));
     }
 
-    protected double getDienstenEnDiverseGoederen(int index) {
+    protected double getDienstenEnDiverseGoederen(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfskostenDienstenDiverseGoederen));
+                document.getPropertiesMap().get(PropertyName.RRBedrijfskostenDienstenDiverseGoederen));
     }
 
-    protected double getAndereKosten(int index) {
+    protected double getAndereKosten(DocumentWrapper document) {
         double value = Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfskostenDienstenDiverseGoederen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap().get(
+                document.getPropertiesMap().get(PropertyName.RRBedrijfskostenDienstenDiverseGoederen))
+                + Double.parseDouble(document.getPropertiesMap().get(
                 PropertyName.RRBedrijfskostenVoorzieningenRisicosKostenToevoegingenBestedingenTerugnemingen))
                 + Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfskostenAndereBedrijfskosten))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                document.getPropertiesMap().get(PropertyName.RRBedrijfskostenAndereBedrijfskosten))
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten));
-        if (Double.parseDouble(documents.get(index).getPropertiesMap()
+        if (Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten)) != Double
-                .parseDouble(documents.get(index).getPropertiesMap()
+                .parseDouble(document.getPropertiesMap()
                         .get(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten))) {
             value += Double.parseDouble(
-                    documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
+                    document.getPropertiesMap().get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
         }
         return value;
     }
 
-    protected double getPersoneelskosten(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getPersoneelskosten(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenBezoldigingenSocialeLastenPensioenen));
     }
 
-    protected double getAankopen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getAankopen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffen));
     }
 
-    protected double getKorteTermijnFinancieleSchulden(int index) {
+    protected double getKorteTermijnFinancieleSchulden(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden));
+                document.getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden));
     }
 
-    protected double getLangeTermijnFinancieleSchulden(int index) {
+    protected double getLangeTermijnFinancieleSchulden(DocumentWrapper document) {
         return Double.parseDouble(
-                documents.get(index).getPropertiesMap().get(PropertyName.BPSchuldenMeer1JaarFinancieleSchulden));
+                document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1JaarFinancieleSchulden));
     }
 
-    protected double getTotalePassiva(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BPTotaalPassiva));
+    protected double getTotalePassiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPTotaalPassiva));
     }
 
-    protected double getKorteTermijnSchulden(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1Jaar))
-                + Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BPOverlopendeRekeningen));
+    protected double getKorteTermijnSchulden(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1Jaar))
+                + Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPOverlopendeRekeningen));
     }
 
-    protected double getVlottendeActiva(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BAVlottendeActiva));
+    protected double getVlottendeActiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVlottendeActiva));
     }
 
-    protected double getInvesteringen(int index) {
+    protected double getInvesteringen(DocumentWrapper document) {
         // NV
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(
+        return Double.parseDouble(document.getPropertiesMap().get(
                 PropertyName.TLMVAConcessiesOctrooienLicentiesKnowhowMerkenSoortgelijkeRechtenMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLIMVAMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLMVATerreinenEnGebouwenMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLMVAInstallatiesMachinesUitrustingMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLMVAMeubilairRollendMaterieelMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLMVAOverigeMaterieleActivaMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLFVAOndernemingenDeelnemingsverhoudingMutatiesTijdensBoekjaarAanschaffingen))
                 // BVBA
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLIMVAMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLMVAMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(documents.get(index).getPropertiesMap()
+                + Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.TLFVAMutatiesTijdensBoekjaarAanschaffingen));
     }
 
-    protected double getAfschrijvingen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(
+    protected double getAfschrijvingen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(
                 PropertyName.RRBedrijfskostenAfschrijvingenWaardeverminderingenOprichtingskostenImmaterieleMaterieleVasteActiva));
     }
 
-    protected double getVasteActiva(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BAVasteActiva));
+    protected double getVasteActiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVasteActiva));
     }
 
-    protected double getEigenVermogen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BPEigenVermogen));
+    protected double getEigenVermogen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPEigenVermogen));
     }
 
-    protected double getLeveranciers(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getLeveranciers(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.BPSchuldenHoogstens1JaarHandelsschuldenLeveranciers));
     }
 
-    protected double getHandelsvorderingen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getHandelsvorderingen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.BAVorderingenHoogstens1JaarHandelsvorderingen));
     }
 
-    protected double getResultaatVoorBelastingen(int index) {
-        return getEBITDA(index) - getAfschrijvingen(index) - getWaardeVermindering(index)
-                + getFinancieleResultaten(index) + getUitzonderlijkeResultaten(index);
+    protected double getResultaatVoorBelastingen(DocumentWrapper document) {
+        return getEBITDA(document) - getAfschrijvingen(document) - getWaardeVermindering(document)
+                + getFinancieleResultaten(document) + getUitzonderlijkeResultaten(document);
     }
 
-    protected double getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen));
     }
 
-    protected double getUitzonderlijkeResultaten(int index) {
+    protected double getUitzonderlijkeResultaten(DocumentWrapper document) {
         double value = 0;
-        if (Double.parseDouble(documents.get(index).getPropertiesMap()
+        if (Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfsopbrengstenUitzonderlijkeOpbrengsten)) != Double
-                .parseDouble(documents.get(index).getPropertiesMap()
+                .parseDouble(document.getPropertiesMap()
                         .get(PropertyName.RRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten))) {
-            value += Double.parseDouble(documents.get(index).getPropertiesMap()
+            value += Double.parseDouble(document.getPropertiesMap()
                     .get(PropertyName.RRBedrijfsopbrengstenUitzonderlijkeOpbrengsten));
         }
-        if (Double.parseDouble(documents.get(index).getPropertiesMap()
+        if (Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten)) != Double
-                .parseDouble(documents.get(index).getPropertiesMap()
+                .parseDouble(document.getPropertiesMap()
                         .get(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten))) {
             value -= Double.parseDouble(
-                    documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
+                    document.getPropertiesMap().get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
         }
         return value;
     }
 
-    protected double getEBITDA(int index) {
-        if (style.equals(ReportStyle.HISTORIEKBVBA) || style.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            return getBrutoMarge(index) - getBedrijfskostenVoorBerekeningen(index);
-        } else if (style.equals(ReportStyle.HISTORIEKNV) || style.equals(ReportStyle.VERGELIJKINGNV)) {
-            return getBedrijfsOpbrengsten(index) - getBedrijfskostenVoorBerekeningen(index);
+    protected double getEBITDA(DocumentWrapper document) {
+        if (reportStyle.equals(ReportStyle.HISTORIEKBVBA) || reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
+            return getBrutoMarge(document) - getBedrijfskostenVoorBerekeningen(document);
+        } else if (reportStyle.equals(ReportStyle.HISTORIEKNV) || reportStyle.equals(ReportStyle.VERGELIJKINGNV)) {
+            return getBedrijfsOpbrengsten(document) - getBedrijfskostenVoorBerekeningen(document);
         }
         return 0;
     }
 
-    protected double getEBIT(int index) {
-        return getEBITDA(index) - getAfschrijvingen(index) - getWaardeVermindering(index);
+    protected double getEBIT(DocumentWrapper document) {
+        return getEBITDA(document) - getAfschrijvingen(document) - getWaardeVermindering(document);
     }
 
-    protected double getFinancieleResultaten(int index) {
+    protected double getFinancieleResultaten(DocumentWrapper document) {
         double inkom = Double
-                .parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRFinancieleOpbrengsten));
+                .parseDouble(document.getPropertiesMap().get(PropertyName.RRFinancieleOpbrengsten));
         if (inkom == 0) {
             inkom = Double.parseDouble(
-                    documents.get(index).getPropertiesMap().get(PropertyName.RRFinancieleOpbrengstenRecurrent));
+                    document.getPropertiesMap().get(PropertyName.RRFinancieleOpbrengstenRecurrent));
         }
-        double uitgaand = getFinancieleKosten(index);
+        double uitgaand = getFinancieleKosten(document);
         if (uitgaand == 0) {
             uitgaand = Double
-                    .parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRFinancieleKostenRecurrent));
+                    .parseDouble(document.getPropertiesMap().get(PropertyName.RRFinancieleKostenRecurrent));
         }
         return inkom - uitgaand;
     }
 
-    protected double getFinancieleKosten(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.RRFinancieleKosten));
+    protected double getFinancieleKosten(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRFinancieleKosten));
     }
 
-    protected double getCoreNettoWerkKapitaal(int index) {
-        return getVoorradenEnBestellingenInUitvoering(index) + getHandelsvorderingen(index) - getLeveranciers(index);
+    protected double getCoreNettoWerkKapitaal(DocumentWrapper document) {
+        return getVoorradenEnBestellingenInUitvoering(document) + getHandelsvorderingen(document) - getLeveranciers(document);
     }
 
-    protected double getCapitalEmployed(int index) {
-        return getCoreNettoWerkKapitaal(index) + getVasteActiva(index);
+    protected double getCapitalEmployed(DocumentWrapper document) {
+        return getCoreNettoWerkKapitaal(document) + getVasteActiva(document);
     }
 
-    protected double getBedrijfskostenVoorBerekeningen(int index) {
-        return getAankopen(index) + getPersoneelskosten(index) + getAndereKosten(index);
+    protected double getBedrijfskostenVoorBerekeningen(DocumentWrapper document) {
+        return getAankopen(document) + getPersoneelskosten(document) + getAndereKosten(document);
     }
 
-    protected double getTotaleBedrijfskosten(int index) {
-        return Double.parseDouble((documents.get(index).getPropertiesMap().get(PropertyName.RRBedrijfskosten)));
+    protected double getTotaleBedrijfskosten(DocumentWrapper document) {
+        return Double.parseDouble((document.getPropertiesMap().get(PropertyName.RRBedrijfskosten)));
     }
 
-    protected double getBrutoMarge(int index) {
-        if (style.equals(ReportStyle.HISTORIEKBVBA) || style.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            return Double.parseDouble(documents.get(index).getPropertiesMap().get(PropertyName.BVBABrutomarge));
+    protected double getBrutoMarge(DocumentWrapper document) {
+        if (reportStyle.equals(ReportStyle.HISTORIEKBVBA) || reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
+            return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BVBABrutomarge));
         } else {
-            return getBedrijfsOpbrengsten(index) - getNietRecurenteBedrijfsopbrengsten(index)
-                    - getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(index)
-                    - getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(index)
-                    - getDienstenEnDiverseGoederen(index);
+            return getBedrijfsOpbrengsten(document) - getNietRecurenteBedrijfsopbrengsten(document)
+                    - getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(document)
+                    - getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(document)
+                    - getDienstenEnDiverseGoederen(document);
         }
     }
 
-    protected double getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename));
     }
 
-    protected double getNietRecurenteBedrijfsopbrengsten(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected double getNietRecurenteBedrijfsopbrengsten(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.RRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten));
     }
 
-    protected double getToegevoegdeWaarde(int index) {
-        return getBedrijfsOpbrengstenOmzet(index) - getAankopen(index);
+    protected double getToegevoegdeWaarde(DocumentWrapper document) {
+        return getBedrijfsOpbrengstenOmzet(document) - getAankopen(document);
     }
 
-    protected double getAndereSchuldenKorteTermijn(int i) throws NumberFormatException {
-        return Double.parseDouble(documents.get(i).getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1Jaar))
-                + Double.parseDouble(documents.get(i).getPropertiesMap().get(PropertyName.BPOverlopendeRekeningen))
-                - getLeveranciers(i) - Double.parseDouble(documents.get(i).getPropertiesMap()
+    protected double getAndereSchuldenKorteTermijn(DocumentWrapper document) throws NumberFormatException {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1Jaar))
+                + Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPOverlopendeRekeningen))
+                - getLeveranciers(document) - Double.parseDouble(document.getPropertiesMap()
                 .get(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden));
     }
 
-    protected double getVoorradenEnBestellingenInUitvoering(int i) {
-        return Double.parseDouble(documents.get(i).getPropertiesMap()
-                .get(PropertyName.BAVoorradenBestellingenUitvoering));
+    protected double getVoorradenEnBestellingenInUitvoering(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVoorradenBestellingenUitvoering));
     }
 
-    protected double getTotaleSchulden(int i) {
-        return Double.parseDouble(documents.get(i).getPropertiesMap().get(PropertyName.BPSchulden));
+    protected double getTotaleSchulden(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPSchulden));
     }
 
-    protected double getNettoWerkkapitaal(int i) {
-        return getVoorradenEnBestellingenInUitvoering(i) + getHandelsvorderingen(i) - getLeveranciers(i);
+    protected double getNettoWerkkapitaal(DocumentWrapper document) {
+        return getVoorradenEnBestellingenInUitvoering(document) + getHandelsvorderingen(document) - getLeveranciers(document);
     }
 
-    protected double getZScoreAltman(int i) {
-        double x1 = getNettoWerkkapitaal(i) / getTotaleActiva(i) * 0.717;
-        double x2 = getWinstVerliesBoekjaar(i) / getTotaleActiva(i) * 0.847;
-        double x3 = getEBIT(i) / getTotaleActiva(i) * 3.107;
-        double x4 = getEigenVermogen(i) / getTotaleSchulden(i) * 0.42;
-        double x5 = getBedrijfsOpbrengstenOmzet(i) / getTotaleActiva(i) * 0.998;
+    protected double getZScoreAltman(DocumentWrapper document) {
+        double x1 = getNettoWerkkapitaal(document) / getTotaleActiva(document) * 0.717;
+        double x2 = getWinstVerliesBoekjaar(document) / getTotaleActiva(document) * 0.847;
+        double x3 = getEBIT(document) / getTotaleActiva(document) * 3.107;
+        double x4 = getEigenVermogen(document) / getTotaleSchulden(document) * 0.42;
+        double x5 = getBedrijfsOpbrengstenOmzet(document) / getTotaleActiva(document) * 0.998;
 
         return x1 + x2 + x3 + x4 + x5;
     }
