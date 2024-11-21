@@ -161,11 +161,94 @@ public abstract class ReportService {
     }
 
     //</editor-fold>
+
+    //<editor-fold desc="addHistoryReportRow">
+
+    protected void addHistoryReportHeaderRow(
+            HSSFCellStyle titleStyle, HSSFCellStyle documentStyle1, HSSFCellStyle documentStyle2) {
+        Row row = addRow();
+
+        addCell(row, "NAAM", titleStyle);
+        addCell(row, "PER", titleStyle);
+        addCell(row, "31/12", titleStyle);
+
+        skipCell(documentCount - 1);
+
+        addCell(row, null, documentStyle1);
+        addCell(row, null, documentStyle1);
+
+        for (DocumentWrapper document : documents) {
+            addCell(row, document.getYear(), documentStyle2);
         }
     }
 
-    protected double getAndereVorderingen(int index) {
-        return Double.parseDouble(documents.get(index).getPropertiesMap()
+    protected <T> void addHistoryReportRow(
+            String text1, HSSFCellStyle textStyle1,
+            Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle valueStyle1) {
+        addHistoryReportRow(text1, textStyle1, valueFunction1, valueStyle1,
+                null, null, null, null, null, null);
+    }
+
+    protected <T> void addHistoryReportRow(
+            String text1, HSSFCellStyle textStyle1,
+            Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle valueStyle1,
+            String text2, HSSFCellStyle textStyle2) {
+        addHistoryReportRow(text1, textStyle1, valueFunction1, valueStyle1,
+                text2, textStyle2, null, null, null, null);
+    }
+
+    protected <T> void addHistoryReportRow(
+            String text2, HSSFCellStyle textStyle2,
+            String text3, HSSFCellStyle textStyle3,
+            Function<DocumentWrapper, T> valueFunction2, HSSFCellStyle valueStyle2) {
+        addHistoryReportRow(null, null, null, null,
+                text2, textStyle2, text3, textStyle3, valueFunction2, valueStyle2);
+    }
+
+    protected <T> void addHistoryReportRow(
+            String text1, HSSFCellStyle textStyle1,
+            Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle valueStyle1,
+            String text2, HSSFCellStyle textStyle2,
+            String text3, HSSFCellStyle textStyle3) {
+        addHistoryReportRow(text1, textStyle1, valueFunction1, valueStyle1,
+                text2, textStyle2, text3, textStyle3, null, null);
+    }
+
+    protected <T1, T2> void addHistoryReportRow(
+            String text1, HSSFCellStyle textStyle1,
+            Function<DocumentWrapper, T1> valueFunction1, HSSFCellStyle valueStyle1,
+            String text2, HSSFCellStyle textStyle2,
+            String text3, HSSFCellStyle textStyle3,
+            Function<DocumentWrapper, T2> valueFunction2, HSSFCellStyle valueStyle2) {
+        Row row = addRow();
+        addHistoryRowTextCell(row, text1, textStyle1);
+        addHistoryRowDocumentValueCell(row, valueFunction1, valueStyle1);
+        skipCell();
+        addHistoryRowTextCell(row, text2, textStyle2);
+        addHistoryRowTextCell(row, text3, textStyle3);
+        addHistoryRowDocumentValueCell(row, valueFunction2, valueStyle2);
+    }
+
+    private void addHistoryRowTextCell(
+            Row row, String text, HSSFCellStyle cellStyle) {
+        if (text != null || cellStyle != null)
+            addCell(row, text, cellStyle);
+        else skipCell();
+    }
+
+    private <T> void addHistoryRowDocumentValueCell(
+            Row row, Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle cellStyle) {
+        if (valueFunction1 != null || cellStyle != null) {
+            for (DocumentWrapper document : documents) {
+                addCell(row, valueFunction1 == null ? null : valueFunction1.apply(document), cellStyle);
+            }
+        } else skipCell(documentCount);
+    }
+    //</editor-fold>
+
+    protected void setupBasicValuesSheet() {
+
+    }
 
     protected double getAndereVorderingen(DocumentWrapper document) {
         return Double.parseDouble(document.getPropertiesMap()
@@ -251,6 +334,11 @@ public abstract class ReportService {
                 document.getPropertiesMap().get(PropertyName.BPVoorzieningenUitgesteldeBelastingen));
     }
 
+    protected double getLangeTermijnSchulden(DocumentWrapper document) {
+        return Double.parseDouble(
+                document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1Jaar));
+    }
+
     protected double getFinancieringsLast(DocumentWrapper document) {
         return (getKorteTermijnFinancieleSchulden(document) + getLangeTermijnFinancieleSchulden(document)) / getEBITDA(document);
     }
@@ -333,6 +421,11 @@ public abstract class ReportService {
                 document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1JaarFinancieleSchulden));
     }
 
+    protected double getLangeTermijnOverigeSchulden(DocumentWrapper document) {
+        return Double.parseDouble(
+                document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1JaarOverigeSchulden));
+    }
+
     protected double getTotalePassiva(DocumentWrapper document) {
         return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPTotaalPassiva));
     }
@@ -378,6 +471,18 @@ public abstract class ReportService {
 
     protected double getVasteActiva(DocumentWrapper document) {
         return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVasteActiva));
+    }
+
+    protected double getImmaterieleVasteActiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAImmaterieleVasteActiva));
+    }
+
+    protected double getMaterieleVasteActiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAMaterieleVasteActiva));
+    }
+
+    protected double getFinancieleVasteActiva(DocumentWrapper document) {
+        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAFinancieleVasteActiva));
     }
 
     protected double getEigenVermogen(DocumentWrapper document) {
