@@ -150,31 +150,24 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public int getYear() {
-            return year;
-        }
-
-        @Override
-        public Business getBusiness() {
-            return business;
-        }
-
-        @Override
         public boolean isSelected() {
             return selected;
         }
 
         private String getStringFromXBRL(String tagName) {
             List<Node> elements = asList(document.getElementsByTagName(String.format("pfs:%s", tagName)));
+
             if (elements.isEmpty()) {
                 elements = asList(document.getElementsByTagName(String.format("c:%s", tagName)));
             }
+
             for (Node node : elements) {
                 String currentRef = node.getAttributes().getNamedItem("contextRef").getTextContent();
                 if (currentTimePeriods.contains(currentRef)) {
                     return node.getTextContent();
                 }
             }
+
             return "0";
         }
 
@@ -215,11 +208,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBAOprichtingskosten() {
-            return addProperty(PropertyName.BAOprichtingskosten, "20", "FormationExpenses");
-        }
-
-        @Override
         public IDocumentBuilder addBAVasteActiva() {
             return addProperty(PropertyName.BAVasteActiva, "21/28", "FixedAssetsFormationExpensesExcluded", "FixedAssets");
         }
@@ -235,85 +223,8 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBATerreinenGebouwen() {
-            return addProperty(PropertyName.BATerreinenGebouwen, "22", "LandBuildings");
-        }
-
-        @Override
-        public IDocumentBuilder addBAInstallatiesMachinesUitrusting() {
-            return addProperty(PropertyName.BAInstallatiesMachinesUitrusting, "23", "PlantMachineryEquipment");
-        }
-
-        @Override
-        public IDocumentBuilder addBAMeubilairRollendMaterieel() {
-            return addProperty(PropertyName.BAMeubilairRollendMaterieel, "24", "FurnitureVehicles");
-        }
-
-        @Override
-        public IDocumentBuilder addBALeasingSoortgelijkeRechten() {
-            return addProperty(PropertyName.BALeasingSoortgelijkeRechten, "25", "LeasingSimilarRights");
-        }
-
-        @Override
-        public IDocumentBuilder addBAOverigeMaterieleVasteActiva() {
-            return addProperty(PropertyName.BAOverigeMaterieleVasteActiva, "26", "OtherTangibleAssets");
-        }
-
-        @Override
-        public IDocumentBuilder addBAActivaAanbouwVooruitbetalingen() {
-            return addProperty(PropertyName.BAActivaAanbouwVooruitbetalingen, "27", "AssetsUnderConstructionAdvancePayments");
-        }
-
-        @Override
         public IDocumentBuilder addBAFinancieleVasteActiva() {
             return addProperty(PropertyName.BAFinancieleVasteActiva, "28", "FinancialFixedAssets");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVerbondenOndernemingen() {
-            return addProperty(PropertyName.BAVerbondenOndernemingen, "280/1", "ParticipatingInterestsAffiliatedEnterprises");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVerbondenOndernemingenDeelnemingen() {
-            return addProperty(PropertyName.BAVerbondenOndernemingenDeelnemingen, "280", "ParticipatingInterestsAmountsReceivableAffiliatedEnterprises");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVerbondenOndernemingenVorderingen() {
-            return addProperty(PropertyName.BAVerbondenOndernemingenVorderingen, "281", "OtherAmountsReceivableAffiliatedEnterprises");
-        }
-
-        @Override
-        public IDocumentBuilder addBAOndernemingenDeelnemingsverhouding() {
-            return addProperty(PropertyName.BAOndernemingenDeelnemingsverhouding, "282/3",
-                    "ParticipatingInterestsAmountsReceivableOtherEnterprisesLinkedParticipatingInterestsAssociatedEnterprisesExcluded");
-        }
-
-        @Override
-        public IDocumentBuilder addBAOndernemingenDeelnemingsverhoudingDeelnemingen() {
-            return addProperty(PropertyName.BAOndernemingenDeelnemingsverhoudingDeelnemingen, "282",
-                    "ParticipatingInterestsOtherEnterprisesLinkedParticipatingInterestsAssociatedEnterprisesExcluded");
-        }
-
-        @Override
-        public IDocumentBuilder addBAOndernemingenDeelnemingsverhoudingVorderingen() {
-            return addProperty(PropertyName.BAOndernemingenDeelnemingsverhoudingVorderingen, "283", "SubordinatedAmountsReceivableEnterprisesLinkedByParticipatingInterests");
-        }
-
-        @Override
-        public IDocumentBuilder addBAAndereFinancieleVasteActiva() {
-            return addProperty(PropertyName.BAAndereFinancieleVasteActiva, "284/8", "OtherFinancialAssets");
-        }
-
-        @Override
-        public IDocumentBuilder addBAAndereFinancieleVasteActivaAandelen() {
-            return addProperty(PropertyName.BAAndereFinancieleVasteActivaAandelen, "284", "OtherFinancialAssetsParticipatingInterestsShares");
-        }
-
-        @Override
-        public IDocumentBuilder addBAAndereFinancieleVasteActivaVorderingenBorgtochtenContanten() {
-            return addProperty(PropertyName.BAAndereFinancieleVasteActivaVorderingenBorgtochtenContanten, "285/8", "OtherFinancialAssetsAmountsReceivableCashGuarantees");
         }
 
         @Override
@@ -322,68 +233,8 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBAVorderingenMeer1Jaar() {
-            return addProperty(PropertyName.BAVorderingenMeer1Jaar, "29", "AmountsReceivableMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVorderingenMeer1JaarHandelsvorderingen() {
-            return addProperty(PropertyName.BAVorderingenMeer1JaarHandelsvorderingen, "290", "TradeDebtorsMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVorderingenMeer1JaarOverigeVorderingen() {
-            return addProperty(PropertyName.BAVorderingenMeer1JaarOverigeVorderingen, "291", "OtherAmountsReceivableMoreOneYear");
-        }
-
-        @Override
         public IDocumentBuilder addBAVoorradenBestellingenUitvoering() {
             return addProperty(PropertyName.BAVoorradenBestellingenUitvoering, "3", "StocksContractsProgress");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorraden() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorraden, "30/36", "Stocks");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenGrondHulpstoffen() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorradenGrondHulpstoffen, "30/31", "StockRawMaterialsConsumables");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenGoederenBewerking() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorradenGoederenBewerking, "32", "StockWorkProgress");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenGereedProduct() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorradenGereedProduct, "33", "StockFinishedGoods");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenHandelsgoederen() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorradenHandelsgoederen, "34", "StockGoodsPurchasedResale");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenOnroerendeGoederenVerkoop() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorradenOnroerendeGoederenVerkoop, "35", "StockImmovablePropertyIntendedSale");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenVooruitbetalingen() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringVoorradenVooruitbetalingen, "36", "AdvancePaymentsPurchasesStocks");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVoorradenBestellingenUitvoeringBestellingenUitvoer() {
-            return addProperty(PropertyName.BAVoorradenBestellingenUitvoeringBestellingenUitvoer, "37", "ContractsProgress");
-        }
-
-        @Override
-        public IDocumentBuilder addBAVorderingenHoogstens1Jaar() {
-            return addProperty(PropertyName.BAVorderingenHoogstens1Jaar, "40/41", "AmountsReceivableWithinOneYear");
         }
 
         @Override
@@ -394,21 +245,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         @Override
         public IDocumentBuilder addBAVorderingenHoogstens1JaarOverigeVorderingen() {
             return addProperty(PropertyName.BAVorderingenHoogstens1JaarOverigeVorderingen, "41", "OtherAmountsReceivableWithinOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBAGeldBeleggingen() {
-            return addProperty(PropertyName.BAGeldBeleggingen, "50/53", "CurrentInvestments");
-        }
-
-        @Override
-        public IDocumentBuilder addBAGeldBeleggingenEigenAandelen() {
-            return addProperty(PropertyName.BAGeldBeleggingenEigenAandelen, "50", "OwnShares");
-        }
-
-        @Override
-        public IDocumentBuilder addBAGeldBeleggingenOverigeBeleggingen() {
-            return addProperty(PropertyName.BAGeldBeleggingenOverigeBeleggingen, "51/53", "OtherCurrentInvestments");
         }
 
         @Override
@@ -432,63 +268,8 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBPKapitaal() {
-            return addProperty(PropertyName.BPKapitaal, "10", "Capital");
-        }
-
-        @Override
-        public IDocumentBuilder addBPKapitaalGeplaatst() {
-            return addProperty(PropertyName.BPKapitaalGeplaatst, "100", "IssuedCapital");
-        }
-
-        @Override
-        public IDocumentBuilder addBPKapitaalNietOpgevraagd() {
-            return addProperty(PropertyName.BPKapitaalNietOpgevraagd, "101", "UncalledCapital");
-        }
-
-        @Override
-        public IDocumentBuilder addBPUitgiftepremies() {
-            return addProperty(PropertyName.BPUitgiftepremies, "1100/10", "SharePremiumAccount");
-        }
-
-        @Override
-        public IDocumentBuilder addBPHerwaarderingsmeerwaarden() {
-            return addProperty(PropertyName.BPHerwaarderingsmeerwaarden, "12", "RevaluationSurpluses");
-        }
-
-        @Override
         public IDocumentBuilder addBPReserves() {
             return addProperty(PropertyName.BPReserves, "13", "Reserves");
-        }
-
-        @Override
-        public IDocumentBuilder addBPReservesWettelijkeReserve() {
-            return addProperty(PropertyName.BPReservesWettelijkeReserve, "130", "DifferentCategoriesSharesValue");
-        }
-
-        @Override
-        public IDocumentBuilder addBPReservesOnbeschikbareReserves() {
-            return addProperty(PropertyName.BPReservesOnbeschikbareReserves, "130/1", "ReservesNotAvailable");
-        }
-
-        @Override
-        public IDocumentBuilder addBPReservesOnbeschikbareReservesEigenAandelen() {
-            return addProperty(PropertyName.BPReservesOnbeschikbareReservesEigenAandelen, "1312", "ReservesNotAvailableOwnSharesHeld");
-        }
-
-        @Override
-        public IDocumentBuilder addBPReservesOnbeschikbareReservesAndere() {
-            return addProperty(PropertyName.BPReservesOnbeschikbareReservesAndere, "1319", "OtherReservesNotAvailable");
-        }
-
-        @Override
-        public IDocumentBuilder addBPReservesBelastingvrijeReserves() {
-            return addProperty(PropertyName.BPReservesBelastingvrijeReserves, "132", "UntaxedReserves");
-        }
-
-        @Override
-        public IDocumentBuilder addBPReservesBeschikbareReserves() {
-            return addProperty(PropertyName.BPReservesBeschikbareReserves, "133", "AvailableReserves");
         }
 
         @Override
@@ -497,48 +278,8 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBPKapitaalSubsidies() {
-            return addProperty(PropertyName.BPKapitaalSubsidies, "15", "InvestmentGrants");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorschotVennotenVerdelingNettoActief() {
-            return addProperty(PropertyName.BPVoorschotVennotenVerdelingNettoActief, "19", "AdvanceAssociatesSharingOutAssets");
-        }
-
-        @Override
         public IDocumentBuilder addBPVoorzieningenUitgesteldeBelastingen() {
             return addProperty(PropertyName.BPVoorzieningenUitgesteldeBelastingen, "16", "ProvisionsDeferredTaxes");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorzieningenRisicosKosten() {
-            return addProperty(PropertyName.BPVoorzieningenRisicosKosten, "160/5", "ProvisionLiabilitiesCharges");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorzieningenRisicosKostenPensioenenSoortelijkeVerplichtingen() {
-            return addProperty(PropertyName.BPVoorzieningenRisicosKostenPensioenenSoortelijkeVerplichtingen, "160", "ProvisionsPensionsSimilarObligations");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorzieningenRisicosKostenFiscaleLasten() {
-            return addProperty(PropertyName.BPVoorzieningenRisicosKostenFiscaleLasten, "161", "ProvisionsTaxation");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorzieningenRisicosKostenGroteHerstellingsOnderhoudswerken() {
-            return addProperty(PropertyName.BPVoorzieningenRisicosKostenGroteHerstellingsOnderhoudswerken, "162", "ProvisionsMajorRepairsMaintenance");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorzieningenRisicosKostenMilieuverplichtingen() {
-            return addProperty(PropertyName.BPVoorzieningenRisicosKostenMilieuverplichtingen, "163", "ProvisionsOtherLiabilitiesCharges");
-        }
-
-        @Override
-        public IDocumentBuilder addBPVoorzieningenRisicosKostenOverige() {
-            return addProperty(PropertyName.BPVoorzieningenRisicosKostenOverige, "164/5", "DeferredTaxes");
         }
 
         @Override
@@ -557,46 +298,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenAchtergesteldeLeningen() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarFinancieleSchuldenAchtergesteldeLeningen, "170", "SubordinatedLoansRemainingTermMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenNietAchtergesteldeObligatieleningen() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarFinancieleSchuldenNietAchtergesteldeObligatieleningen, "171", "UnsubordinatedDebenturesRemainingTermMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenLeasingschuldenSoortgelijkeSchulden() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarFinancieleSchuldenLeasingschuldenSoortgelijkeSchulden, "172", "LeasingSimilarObligationsRemainingTermMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenKredietinstellingen() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarFinancieleSchuldenKredietinstellingen, "173", "AmountsPayableMoreOneYearCreditInstitutions");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenOverigeLeningen() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarFinancieleSchuldenOverigeLeningen, "174", "OtherLoansRemainingTermMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarHandelsschulden() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarHandelsschulden, "175", "TradeDebtsPayableMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarHandelsschuldenTeBetalenWissels() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarHandelsschuldenTeBetalenWissels, "1751", "BillExchangeMoreOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenMeer1JaarOntvangenVooruitbetalingenBestellingen() {
-            return addProperty(PropertyName.BPSchuldenMeer1JaarOntvangenVooruitbetalingenBestellingen, "176", "AdvancesReceivedContractsProgressWithinOneYear");
-        }
-
-        @Override
         public IDocumentBuilder addBPSchuldenMeer1JaarOverigeSchulden() {
             return addProperty(PropertyName.BPSchuldenMeer1JaarOverigeSchulden, "178/9", "OtherAmountsPayableMoreOneYear");
         }
@@ -607,63 +308,13 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenMeer1JaarBinnenJaarVervallen() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarSchuldenMeer1JaarBinnenJaarVervallen, "42", "CurrentPortionAmountsPayableMoreOneYearFallingDueWithinOneYear");
-        }
-
-        @Override
         public IDocumentBuilder addBPSchuldenHoogstens1JaarFinancieleSchulden() {
             return addProperty(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden, "43", "FinancialDebtsPayableWithinOneYear");
         }
 
         @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarFinancieleSchuldenKredietinstellingen() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchuldenKredietinstellingen, "430/8", "AmountsPayableWithinOneYearCreditInstitutions");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarFinancieleSchuldenOverigeLeningen() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchuldenOverigeLeningen, "439", "OtherLoansPayableWithinOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarHandelsschulden() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarHandelsschulden, "44", "TradeDebtsPayableWithinOneYear");
-        }
-
-        @Override
         public IDocumentBuilder addBPSchuldenHoogstens1JaarHandelsschuldenLeveranciers() {
             return addProperty(PropertyName.BPSchuldenHoogstens1JaarHandelsschuldenLeveranciers, "440/4", "SuppliersInvoicesToReceiveWithinOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarHandelsschuldenTeBetalenWissels() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarHandelsschuldenTeBetalenWissels, "441", "BillExchangePayableWithinOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarOntvangenVooruitbetalingenBestellingen() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarOntvangenVooruitbetalingenBestellingen, "46", "AdvancesReceivedContractsProgressWithinOneYear");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLasten() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLasten, "45", "TaxesRemunerationSocialSecurity");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLastenBelastingen() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLastenBelastingen, "450/3", "Taxes");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLastenBezoldigingenSocialeLasten() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLastenBezoldigingenSocialeLasten, "454/9", "RemunerationSocialSecurity");
-        }
-
-        @Override
-        public IDocumentBuilder addBPSchuldenHoogstens1JaarOverigeSchulden() {
-            return addProperty(PropertyName.BPSchuldenHoogstens1JaarOverigeSchulden, "47/48", "OtherAmountsPayableWithinOneYear");
         }
 
         @Override
@@ -684,21 +335,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         @Override
         public IDocumentBuilder addRRBedrijfsopbrengstenOmzet() {
             return addProperty(PropertyName.RRBedrijfsopbrengstenOmzet, "70", "Turnover");
-        }
-
-        @Override
-        public IDocumentBuilder addRRBedrijfsopbrengstenToenameAfnameVoorraadGoederenBewerkingGereedProductBestellingenUitvoering() {
-            return addProperty(PropertyName.RRBedrijfsopbrengstenToenameAfnameVoorraadGoederenBewerkingGereedProductBestellingenUitvoering, "71", "IncreaseDecreaseStocksWorkContractsProgress");
-        }
-
-        @Override
-        public IDocumentBuilder addRRBedrijfsopbrengstenGeproduceerdeVasteActiva() {
-            return addProperty(PropertyName.RRBedrijfsopbrengstenGeproduceerdeVasteActiva, "72", "OwnConstructionCapitalised");
-        }
-
-        @Override
-        public IDocumentBuilder addRRBedrijfsopbrengstenAndereBedrijfsopbrengsten() {
-            return addProperty(PropertyName.RRBedrijfsopbrengstenAndereBedrijfsopbrengsten, "74", "OtherOperatingIncome");
         }
 
         @Override
@@ -757,11 +393,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addRRBedrijfskostenHerstructureringskostenGeactiveerdeBedrijfskosten() {
-            return addProperty(PropertyName.RRBedrijfskostenHerstructurerngskostenGeactiveerdeBedrijfskosten, "649", "OperatingChargesCarriedAssetsRestructuringCosts");
-        }
-
-        @Override
         public IDocumentBuilder addRRBedrijfskostenNietRecurrenteBedrijfskosten() {
             return addProperty(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten, "66A", "NonRecurringOperatingCharges");
         }
@@ -792,26 +423,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addRRFinancieleOpbrengstenRecurrentOpbrengstenFinancieleVasteActiva() {
-            return addProperty(PropertyName.RRFinancieleOpbrengstenRecurrentOpbrengstenFinancieleVasteActiva, "750", "IncomeFinancialFixedAssets");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleOpbrengstenRecurrentOpbrengstenVlottendeActiva() {
-            return addProperty(PropertyName.RRFinancieleOpbrengstenRecurrentOpbrengstenVlottendeActiva, "751", "IncomeCurrentAssets");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleOpbrengstenRecurrentAndereFinancieleOpbrengsten() {
-            return addProperty(PropertyName.RRFinancieleOpbrengstenRecurrentAndereFinancieleOpbrengsten, "752/9", "OtherFinancialIncome");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleOpbrengstenNietRecurrent() {
-            return addProperty(PropertyName.RRFinancieleOpbrengstenNietRecurrent, "76B", "NonRecurringFinancialIncome");
-        }
-
-        @Override
         public IDocumentBuilder addRRFinancieleKosten() {
             return addProperty(PropertyName.RRFinancieleKosten, "65/66B", "FinancialChargesNonRecurringFinancialChargesIncluded", "FinancialCharges");
         }
@@ -819,31 +430,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         @Override
         public IDocumentBuilder addRRFinancieleKostenRecurrent() {
             return addProperty(PropertyName.RRFinancieleKostenRecurrent, "65", "FinancialCharges");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleKostenRecurrentKostenSchulden() {
-            return addProperty(PropertyName.RRFinancieleKostenRecurrentKostenSchulden, "650", "DebtCharges");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleKostenRecurrentWaardeverminderingenVlottendeActivaAndereVoorradenBestellingenUitvoeringHandelvorderingenToevoegingenTerugnemingen() {
-            return addProperty(PropertyName.RRFinancieleKostenRecurrentWaardeverminderingenVlottendeActivaAndereVoorradenBestellingenUitvoeringHandelvorderingenToevoegingenTerugnemingen, "651", "ProvisionsRisksChargesAppropriationsWriteBacks");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleKostenRecurrentAndereFinancieleKosten() {
-            return addProperty(PropertyName.RRFinancieleKostenRecurrentAndereFinancieleKosten, "652/9", "OtherFinancialCharges");
-        }
-
-        @Override
-        public IDocumentBuilder addRRFinancieleKostenNietRecurrent() {
-            return addProperty(PropertyName.RRFinancieleKostenNietRecurrent, "66B", "NonRecurringFinancialCharges");
-        }
-
-        @Override
-        public IDocumentBuilder addRRWinstVerliesBoekjaarVoorBelastingen() {
-            return addProperty(PropertyName.RRWinstVerliesBoekjaarVoorBelastingen, "9903", "GainLossBeforeTaxes");
         }
 
         @Override
@@ -862,33 +448,8 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addRRBelastingenOpResultaatBelastingen() {
-            return addProperty(PropertyName.RRBelastingenOpResultaatBelastingen, "670/3", "BelgianForeignIncomeTaxes");
-        }
-
-        @Override
-        public IDocumentBuilder addRRBelastingenOpResultaatRegulariseringBelastingenTerugnemingVoorzieningenBelastingen() {
-            return addProperty(PropertyName.RRBelastingenOpResultaatRegulariseringBelastingenTerugnemingVoorzieningenBelastingen, "77", "AdjustmentIncomeTaxesWriteBackTaxProvisions");
-        }
-
-        @Override
         public IDocumentBuilder addRRWinstVerliesBoekjaar() {
             return addProperty(PropertyName.RRWinstVerliesBoekjaar, "9904", "GainLossPeriod");
-        }
-
-        @Override
-        public IDocumentBuilder addRROntrekkingBelastingvrijeReserves() {
-            return addProperty(PropertyName.RROntrekkingBelastingvrijeReserves, "789", "TransferFromUntaxedReserves");
-        }
-
-        @Override
-        public IDocumentBuilder addRROverboekingBelastingvrijeReserves() {
-            return addProperty(PropertyName.RROverboekingBelastingvrijeReserves, "689", "TransferToUntaxedReserves");
-        }
-
-        @Override
-        public IDocumentBuilder addRRTeBestemmenWinstVerliesBoekjaar() {
-            return addProperty(PropertyName.RRTeBestemmenWinstVerliesBoekjaar, "9905", "GainLossToBeAppropriated");
         }
 
         @Override
@@ -938,11 +499,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         }
 
         @Override
-        public IDocumentBuilder addTLFVAAndereOndernemingenMutatiesTijdensBoekjaarAanschaffingen() {
-            return addProperty(PropertyName.TLFVAAndereOndernemingenMutatiesTijdensBoekjaarAanschaffingen, "8363", "OtherParticipatingInterestsSharesAcquisitions");
-        }
-
-        @Override
         public IDocumentBuilder addSBGemiddeldeFTE() {
             return addProperty(PropertyName.SBGemiddeldeFTE, "9087", "AverageNumberEmployeesPersonnelRegisterTotalFullTimeEquivalents");
         }
@@ -955,11 +511,6 @@ public class DocumentWrapper implements IDocumentWrapper {
         @Override
         public IDocumentBuilder addSBGemiddeldAantalFTEUitzendkrachten() {
             return addProperty(PropertyName.SBGemiddeldAantalFTEUitzendkrachten, "9097", "HiredTemporaryStaffAverageNumberPersonsEmployed");
-        }
-
-        @Override
-        public IDocumentBuilder addSBPersoneelskosten() {
-            return addProperty(PropertyName.SBPersoneelskosten, "1023", "PersonnelCostsTotal");
         }
 
         @Override

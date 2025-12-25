@@ -2,7 +2,7 @@ package ScreenControllers;
 
 import Models.ErrorObject;
 import Services.AlertService;
-import Models.Enums.ReportStyle;
+import Models.Enums.ReportType;
 import Services.DomainController;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
@@ -85,20 +85,20 @@ public class SettingsScreenController extends VBox {
         switch (companyType) {
             case "NV":
                 if (sheetType.equals("Historiek")) {
-                    next = new MakeReportScreenController(domainController, startScreenController, ReportStyle.HISTORIEKNV, this);
+                    next = new MakeReportScreenController(domainController, startScreenController, ReportType.HISTORIEKNV, this);
                 } else {
-                    next = new MakeReportScreenController(domainController, startScreenController, ReportStyle.VERGELIJKINGNV, this);
+                    next = new MakeReportScreenController(domainController, startScreenController, ReportType.VERGELIJKINGNV, this);
                 }
                 break;
             case "BVBA":
                 if (sheetType.equals("Historiek")) {
-                    next = new MakeReportScreenController(domainController, startScreenController, ReportStyle.HISTORIEKBVBA, this);
+                    next = new MakeReportScreenController(domainController, startScreenController, ReportType.HISTORIEKBVBA, this);
                 } else {
-                    next = new MakeReportScreenController(domainController, startScreenController, ReportStyle.VERGELIJKINGBVBA, this);
+                    next = new MakeReportScreenController(domainController, startScreenController, ReportType.VERGELIJKINGBVBA, this);
                 }
                 break;
             default:
-                startScreenController.setCenter(new MakeReportScreenController(domainController, startScreenController, ReportStyle.HISTORIEKNV, this));
+                startScreenController.setCenter(new MakeReportScreenController(domainController, startScreenController, ReportType.HISTORIEKNV, this));
         }
         return null;
     }

@@ -5,7 +5,6 @@ import Models.Interfaces.IDocumentBuilder;
 import Services.AlertService;
 import Models.ErrorObject;
 import Services.DomainController;
-import StartUp.StartApplication;
 import Util.XmlUtil;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;

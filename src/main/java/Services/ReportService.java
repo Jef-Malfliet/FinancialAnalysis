@@ -1,35 +1,39 @@
 package Services;
 
 import Models.Enums.PropertyName;
-import Models.Enums.ReportStyle;
+import Models.Enums.ReportType;
 import Models.DocumentWrapper;
-import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.*;
 
 import java.util.List;
 import java.util.function.Function;
 
 public abstract class ReportService {
 
-    private final HSSFSheet reportSheet;
-    private final HSSFSheet basicValuesSheet;
+    protected final XSSFSheet reportSheet;
+    private final XSSFSheet basicValuesSheet;
+    private final XSSFFormulaEvaluator formulaEvaluator;
+    private final XSSFSheetConditionalFormatting conditionalFormatting;
 
     protected final List<DocumentWrapper> documents;
     protected final int documentCount;
-    protected final ReportStyle reportStyle;
-    protected final HSSFWorkbook workbook;
-    protected final HSSFDataFormat numberFormatter;
+    protected final ReportType reportType;
+    protected final XSSFWorkbook workbook;
+    protected final XSSFDataFormat numberFormatter;
     protected int rowNumber;
     protected int columnNumber;
 
-    public ReportService(
-            HSSFWorkbook workbook, HSSFSheet reportSheet, HSSFSheet basicValuesSheet,
-            List<DocumentWrapper> documents, ReportStyle reportStyle, HSSFDataFormat numberFormatter) {
+    public ReportService(XSSFWorkbook workbook, XSSFSheet reportSheet, XSSFSheet basicValuesSheet, List<DocumentWrapper> documents, ReportType reportType, XSSFDataFormat numberFormatter) {
         this.workbook = workbook;
         this.reportSheet = reportSheet;
+        this.formulaEvaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        this.conditionalFormatting = reportSheet.getSheetConditionalFormatting();
+
         this.basicValuesSheet = basicValuesSheet;
         this.documents = documents;
-        this.reportStyle = reportStyle;
+        this.reportType = reportType;
         this.numberFormatter = numberFormatter;
         this.rowNumber = 0;
         this.columnNumber = 0;
@@ -39,7 +43,9 @@ public abstract class ReportService {
     }
 
     public void create() {
+        resetRowNumber();
         setupBasicValuesSheet();
+        resetRowNumber();
         createInternal();
     }
 
@@ -49,15 +55,11 @@ public abstract class ReportService {
 
     //<editor-fold desc="row utilities">
 
-    private Row addRow() {
-        return addRow(0);
-    }
-
-    private Row addRow(int initialColumnNumber) {
-        Row row = reportSheet.createRow(rowNumber);
+    protected XSSFRow addRow(XSSFSheet sheet) {
+        XSSFRow row = sheet.createRow(rowNumber);
 
         rowNumber++;
-        columnNumber = initialColumnNumber;
+        columnNumber = 0;
 
         return row;
     }
@@ -66,15 +68,30 @@ public abstract class ReportService {
         rowNumber++;
     }
 
+    protected void resetRowNumber() {
+        rowNumber = 0;
+    }
+
     //</editor-fold>
 
     //<editor-fold desc="cell utilities">
 
-    private <T> void addCell(Row row, T value, HSSFCellStyle style) {
+    protected <T> void addCell(XSSFRow row, T value) {
+        addCell(row, value, null);
+    }
+
+    protected <T> void addCell(XSSFRow row, T value, XSSFCellStyle style) {
+        addCellWithName(row, value, style, null, null);
+    }
+
+    protected <T> void addCellWithName(XSSFRow row, T value, String nameValue, XSSFSheet sheet) {
+        addCellWithName(row, value, null, nameValue, sheet);
+    }
+
+    protected <T> void addCellWithName(XSSFRow row, T value, XSSFCellStyle style, String nameValue, XSSFSheet sheet) {
         Cell cell = row.createCell(columnNumber);
 
-        if (style != null)
-            cell.setCellStyle(style);
+        if (style != null) cell.setCellStyle(style);
 
         if (value instanceof Integer) {
             cell.setCellValue((Integer) value);
@@ -86,547 +103,564 @@ public abstract class ReportService {
             cell.setCellValue((String) value);
         }
 
+        if (nameValue != null && !nameValue.isBlank() && sheet != null) {
+            XSSFName name = workbook.createName();
+            name.setNameName(nameValue);
+            name.setRefersToFormula(String.format("%s!%s", sheet.getSheetName(), getCurrentCellAsReference(true)));
+        }
+
         columnNumber++;
     }
 
-    private void skipCell() {
+    protected void addReferenceCell(XSSFRow row, String formula, Function<Integer, XSSFCellStyle> valueStyleFunction) {
+        addReferenceCell(row, formula, valueStyleFunction, null);
+    }
+
+    protected void addReferenceCell(XSSFRow row, String formula,
+                                    Function<Integer, XSSFCellStyle> valueStyleFunction, CellType type) {
+        Cell cell = type == null ? row.createCell(columnNumber) : row.createCell(columnNumber, type);
+
+        if (formula == null || formula.equals("/")) {
+            cell.setCellValue(formula);
+        } else {
+            cell.setCellFormula(formula);
+        }
+
+        formulaEvaluator.evaluateFormulaCell(cell);
+
+        if (valueStyleFunction != null)
+            cell.setCellStyle(valueStyleFunction.apply(columnNumber));
+
+        columnNumber++;
+    }
+
+    protected void skipCell() {
         skipCell(1);
     }
 
-    private void skipCell(int skipNumber) {
+    protected void skipCell(int skipNumber) {
         columnNumber += skipNumber;
     }
 
     //</editor-fold>
 
-    //<editor-fold desc="addCompareReportRow">
-
-    protected void addCompareReportRow(String rowName) {
-        addCompareReportRow(rowName, null, null, d -> null, null, 0);
+    private void setupBasicValuesSheet() {
+        setupBasicValueTableHeader();
+        setupBasicValueTableValues();
     }
 
-    protected <T> void addCompareReportRow(String rowName, Function<DocumentWrapper, T> valueFunction) {
-        addCompareReportRow(rowName, valueFunction, null, d -> null, null, 2);
-    }
+    private void setupBasicValueTableValues() {
+        for (int i = 0; i < documentCount; i++) {
+            XSSFRow documentRow = addRow(basicValuesSheet);
+            DocumentWrapper document = documents[i];
 
-    protected <T> void addCompareReportRow(
-            String rowName, Function<DocumentWrapper, T> valueFunction, HSSFCellStyle valueStyle) {
-        addCompareReportRow(rowName, valueFunction, CellType.NUMERIC, d -> valueStyle, null, 1);
-    }
+            for (PropertyName propertyName : PropertyName.values()) {
+                double value = Double.parseDouble(document.getPropertiesMap().get(propertyName));
 
-    protected <T> void addCompareReportRow(
-            String rowName, Function<DocumentWrapper, T> valueFunction,
-            HSSFCellStyle valueStyle, HSSFCellStyle titleStyle) {
-        addCompareReportRow(rowName, valueFunction, CellType.NUMERIC, d -> valueStyle, titleStyle, 1);
-    }
-
-    protected <T> void addCompareReportRow(
-            String rowName, Function<DocumentWrapper, T> valueFunction,
-            CellType cellType, Function<DocumentWrapper, HSSFCellStyle> valueStyleFunction,
-            HSSFCellStyle titleStyle, int initialColumnIndex) {
-        Row row = addRow(initialColumnIndex);
-        Cell titleCell = row.createCell(initialColumnIndex);
-
-        titleCell.setCellValue(rowName);
-
-        if (titleStyle != null)
-            titleCell.setCellStyle(titleStyle);
-
-        if (valueFunction != null) {
-            int columnIndex = initialColumnIndex + 1;
-
-            for (DocumentWrapper document : documents) {
-                Cell cell = cellType == null
-                        ? row.createCell(columnIndex)
-                        : row.createCell(columnIndex, cellType);
-
-                T value = valueFunction.apply(document);
-
-                if (value instanceof Integer) {
-                    cell.setCellValue((Integer) value);
-                } else if (value instanceof Long) {
-                    cell.setCellValue((Long) value);
-                } else if (value instanceof Double) {
-                    cell.setCellValue((Double) value);
+                if (propertyName.mustBeRounded()) {
+                    addCellWithName(documentRow, Math.round(value), '_' + propertyName.toString() + (i + 1), basicValuesSheet);
                 } else {
-                    cell.setCellValue((String) value);
+                    addCellWithName(documentRow, value, '_' + propertyName.toString() + (i + 1), basicValuesSheet);
                 }
-
-                if (reportStyle != null)
-                    cell.setCellStyle(valueStyleFunction.apply(document));
-
-                columnIndex++;
             }
         }
     }
 
-    //</editor-fold>
+    private void setupBasicValueTableHeader() {
+        XSSFRow headerRow = addRow(basicValuesSheet);
 
-    //<editor-fold desc="addHistoryReportRow">
-
-    protected void addHistoryReportHeaderRow(
-            HSSFCellStyle titleStyle, HSSFCellStyle documentStyle1, HSSFCellStyle documentStyle2) {
-        Row row = addRow();
-
-        addCell(row, "NAAM", titleStyle);
-        addCell(row, "PER", titleStyle);
-        addCell(row, "31/12", titleStyle);
-
-        skipCell(documentCount - 1);
-
-        addCell(row, null, documentStyle1);
-        addCell(row, null, documentStyle1);
-
-        for (DocumentWrapper document : documents) {
-            addCell(row, document.getYear(), documentStyle2);
+        for (PropertyName propertyName : PropertyName.values()) {
+            addCell(headerRow, propertyName.toString());
         }
     }
 
-    protected <T> void addHistoryReportRow(
-            String text1, HSSFCellStyle textStyle1,
-            Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle valueStyle1) {
-        addHistoryReportRow(text1, textStyle1, valueFunction1, valueStyle1,
-                null, null, null, null, null, null);
+    // <editor-fold desc="getters">
+
+    protected String getBasicValueReference(int index, PropertyName propertyName) {
+        return '_' + propertyName.toString() + (index + 1);
     }
 
-    protected <T> void addHistoryReportRow(
-            String text1, HSSFCellStyle textStyle1,
-            Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle valueStyle1,
-            String text2, HSSFCellStyle textStyle2) {
-        addHistoryReportRow(text1, textStyle1, valueFunction1, valueStyle1,
-                text2, textStyle2, null, null, null, null);
+    protected double getBasicValue(int index, PropertyName propertyName) {
+        return basicValuesSheet.getRow(index + 1).getCell(propertyName.ordinal()).getNumericCellValue();
     }
 
-    protected <T> void addHistoryReportRow(
-            String text2, HSSFCellStyle textStyle2,
-            String text3, HSSFCellStyle textStyle3,
-            Function<DocumentWrapper, T> valueFunction2, HSSFCellStyle valueStyle2) {
-        addHistoryReportRow(null, null, null, null,
-                text2, textStyle2, text3, textStyle3, valueFunction2, valueStyle2);
+    protected String getYear(int i) {
+        return String.valueOf(documents.get(i).getYear());
     }
 
-    protected <T> void addHistoryReportRow(
-            String text1, HSSFCellStyle textStyle1,
-            Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle valueStyle1,
-            String text2, HSSFCellStyle textStyle2,
-            String text3, HSSFCellStyle textStyle3) {
-        addHistoryReportRow(text1, textStyle1, valueFunction1, valueStyle1,
-                text2, textStyle2, text3, textStyle3, null, null);
+    protected String getVorderingenHoogstens1JaarOverigeVorderingen(int i) {
+        return getBasicValueReference(i, PropertyName.BAVorderingenHoogstens1JaarOverigeVorderingen);
     }
 
-    protected <T1, T2> void addHistoryReportRow(
-            String text1, HSSFCellStyle textStyle1,
-            Function<DocumentWrapper, T1> valueFunction1, HSSFCellStyle valueStyle1,
-            String text2, HSSFCellStyle textStyle2,
-            String text3, HSSFCellStyle textStyle3,
-            Function<DocumentWrapper, T2> valueFunction2, HSSFCellStyle valueStyle2) {
-        Row row = addRow();
-        addHistoryRowTextCell(row, text1, textStyle1);
-        addHistoryRowDocumentValueCell(row, valueFunction1, valueStyle1);
-        skipCell();
-        addHistoryRowTextCell(row, text2, textStyle2);
-        addHistoryRowTextCell(row, text3, textStyle3);
-        addHistoryRowDocumentValueCell(row, valueFunction2, valueStyle2);
+    protected String getGemiddeldeAantalFTEUitzendkrachten(int i) {
+        return getBasicValueReference(i, PropertyName.SBGemiddeldAantalFTEUitzendkrachten);
     }
 
-    private void addHistoryRowTextCell(
-            Row row, String text, HSSFCellStyle cellStyle) {
-        if (text != null || cellStyle != null)
-            addCell(row, text, cellStyle);
-        else skipCell();
+    protected String getGepresteerdeUrenUitzendkrachten(int i) {
+        return getBasicValueReference(i, PropertyName.SBGepresteerdeUrenUitzendkrachten);
     }
 
-    private <T> void addHistoryRowDocumentValueCell(
-            Row row, Function<DocumentWrapper, T> valueFunction1, HSSFCellStyle cellStyle) {
-        if (valueFunction1 != null || cellStyle != null) {
-            for (DocumentWrapper document : documents) {
-                addCell(row, valueFunction1 == null ? null : valueFunction1.apply(document), cellStyle);
-            }
-        } else skipCell(documentCount);
-    }
-    //</editor-fold>
-
-    protected void setupBasicValuesSheet() {
-
+    protected String getPersoneelskostenUitzendkrachten(int i) {
+        return getBasicValueReference(i, PropertyName.SBPersoneelskostenUitzendkrachten);
     }
 
-    protected double getAndereVorderingen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.BAVorderingenHoogstens1JaarOverigeVorderingen));
+    protected String getAantalWerknemersOpEindeBoekjaar(int i) {
+        return getBasicValueReference(i, PropertyName.SBAantalWerknemersOpEindeBoekjaar);
     }
 
-    protected double getAantalWerknemersOpEindeBoekjaar(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.SBAantalWerknemersOpEindeBoekjaar));
+    protected String getAantalBediendenOpEindeBoekjaar(int i) {
+        return getBasicValueReference(i, PropertyName.SBAantalBediendenOpEindeBoekjaar);
     }
 
-    protected double getAantalBediendenOpEindeBoekjaar(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.SBAantalBediendenOpEindeBoekjaar));
+    protected String getAantalArbeidersOpEindeBoekjaar(int i) {
+        return getBasicValueReference(i, PropertyName.SBAantalArbeidersOpEindeBoekjaar);
     }
 
-    protected double getAantalArbeiderssOpEindeBoekjaar(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.SBAantalArbeidersOpEindeBoekjaar));
+    protected String getGepresteerdeUren(int i) {
+        return getBasicValueReference(i, PropertyName.SBGepresteerdeUren);
     }
 
-    protected double getPersoneelskostenUitzendkrachten(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.SBPersoneelskostenUitzendkrachten));
+    protected String getTotaleActiva(int i) {
+        return getBasicValueReference(i, PropertyName.BATotaalActiva);
     }
 
-    protected double getGepresteerdeUrenUitzendkrachten(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.SBGepresteerdeUrenUitzendkrachten));
+    protected String getVoorradenBestellingenUitvoering(int i) {
+        return getBasicValueReference(i, PropertyName.BAVoorradenBestellingenUitvoering);
     }
 
-    protected double getGemiddeldeAantalFTEUitzendkrachten(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.SBGemiddeldAantalFTEUitzendkrachten));
+    protected String getGemiddeldeAantalFTE(int i) {
+        return getBasicValueReference(i, PropertyName.SBGemiddeldeFTE);
     }
 
-    protected double getSBPersoneelsKosten(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.SBPersoneelskosten));
+    protected String getBedrijfsOpbrengsten(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfsopbrengsten);
     }
 
-    protected double getGepresteerdeUren(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.SBGepresteerdeUren));
+    protected String getLiquideMiddelen(int i) {
+        return getBasicValueReference(i, PropertyName.BALiquideMiddelen);
     }
 
-    protected double getGemiddeldeAantalFTE(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.SBGemiddeldeFTE));
+    protected String getBedrijfsOpbrengstenOmzet(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfsopbrengstenOmzet);
     }
 
-    protected double getLiquideMiddelen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BALiquideMiddelen));
+    protected String getWinstVerliesBoekjaar(int i) {
+        return getBasicValueReference(i, PropertyName.RRWinstVerliesBoekjaar);
     }
 
-    protected double getTotaleActiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BATotaalActiva));
+    protected String getReserves(int i) {
+        return getBasicValueReference(i, PropertyName.BPReserves);
     }
 
-    protected double getReserves(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPReserves));
+    protected String getOverdragenWinstVerlies(int i) {
+        return getBasicValueReference(i, PropertyName.BPOvergedragenWinstVerlies);
     }
 
-    protected double getOverdragenWinstVerlies(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPOvergedragenWinstVerlies));
+    protected String getBedrijfsWinstVerlies(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfsWinstVerlies);
     }
 
-    protected double getBedrijfsOpbrengsten(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBedrijfsopbrengsten));
+    protected String getProvisies(int i) {
+        return getBasicValueReference(i, PropertyName.BPVoorzieningenUitgesteldeBelastingen);
     }
 
-    protected double getBedrijfsOpbrengstenOmzet(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBedrijfsopbrengstenOmzet));
+    protected String getLangeTermijnSchulden(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchuldenMeer1Jaar);
     }
 
-    protected double getBedrijfswinstVerlies(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBedrijfsWinstVerlies));
+    protected String getFinancieringsLast(int i) {
+        return getKorteTermijnFinancieleSchulden(i)
+                .add(getLangeTermijnFinancieleSchulden(i))
+                .inParenthesis()
+                .dividedBy(getEBITDA(i)
+                        .inParenthesis());
     }
 
-    protected double getWinstVerliesBoekjaar(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRWinstVerliesBoekjaar));
+    protected String getCash(int i) {
+        return getLiquideMiddelen(i)
+                .add(getBasicValueReference(i, PropertyName.BAOverlopendeRekeningen));
     }
 
-    protected double getProvisies(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.BPVoorzieningenUitgesteldeBelastingen));
+    protected String getVoorraadrotatie(int i) {
+        return getVoorradenBestellingenUitvoering(i)
+                .dividedBy(getBedrijfsOpbrengsten(i))
+                .multipliedBy("365");
     }
 
-    protected double getLangeTermijnSchulden(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1Jaar));
+    protected String getKlantenKrediet(int i) {
+        return getHandelsvorderingen(i)
+                .dividedBy(getBedrijfsOpbrengsten(i))
+                .multipliedBy("365");
     }
 
-    protected double getFinancieringsLast(DocumentWrapper document) {
-        return (getKorteTermijnFinancieleSchulden(document) + getLangeTermijnFinancieleSchulden(document)) / getEBITDA(document);
+    protected String getLeveranciersKrediet(int i) {
+        return getLeveranciers(i)
+                .dividedBy(getBedrijfsOpbrengsten(i))
+                .multipliedBy("365");
     }
 
-    protected double getCash(DocumentWrapper document) {
-        return getLiquideMiddelen(document)
-                + Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAOverlopendeRekeningen));
+    protected String getCashFlow(int i) {
+        return getWinstVerliesBoekjaar(i)
+                .add(getAfschrijvingen(i));
     }
 
-    protected double getVoorraadrotatie(DocumentWrapper document) {
-        return getVoorradenEnBestellingenInUitvoering(document) / getBedrijfsOpbrengsten(document) * 365;
+    protected String getLiquiditeitsRatio(int i) {
+        return getVlottendeActiva(i)
+                .dividedBy(getKorteTermijnSchulden(i)
+                        .inParenthesis());
     }
 
-    protected double getKlantenKrediet(DocumentWrapper document) {
-        return getHandelsvorderingen(document) / getBedrijfsOpbrengsten(document) * 365;
+    protected String getSolvabiliteitsRatio(int i) {
+        return getKorteTermijnSchulden(i)
+                .inParenthesis()
+                .dividedBy(getTotaleActiva(i));
     }
 
-    protected double getLeveranciersKrediet(DocumentWrapper document) {
-        return getLeveranciers(document) / getBedrijfsOpbrengsten(document) * 365;
+    protected String getNettoWinstOverOmzet(int i) {
+        return getWinstVerliesBoekjaar(i)
+                .dividedBy(getBedrijfsOpbrengstenOmzet(i));
     }
 
-    protected double getCashFlow(DocumentWrapper document) {
-        return getWinstVerliesBoekjaar(document) + getAfschrijvingen(document);
+    protected String getRentabiliteitsRatioEigenVermogen(int i) {
+        return getWinstVerliesBoekjaar(i)
+                .dividedBy(getEigenVermogen(i));
     }
 
-    protected double getWaardeVermindering(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(
-                PropertyName.RRBedrijfskostenWaardeverminderingenVoorradenBestellingenUitvoeringHandelsvorderingenToevoegingenTerugnemingen));
+    protected String getCashConversionCycle(int i) {
+        return getVoorraadrotatie(i)
+                .add(getKlantenKrediet(i))
+                .subtract(getLeveranciersKrediet(i));
     }
 
-    protected double getBelastingen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRBelastingenOpResultaat))
-                - Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.RROntrekkingenUitgesteldeBelastingen))
-                + Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.RROverboekingUitgesteldeBelastingen));
+    protected String getWaardeVermindering(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenWaardeverminderingenVoorradenBestellingenUitvoeringHandelsvorderingenToevoegingenTerugnemingen);
     }
 
-    protected double getDienstenEnDiverseGoederen(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.RRBedrijfskostenDienstenDiverseGoederen));
+    protected String getBelastingen(int i) {
+        return getBasicValueReference(i, PropertyName.RRBelastingenOpResultaat)
+                .subtract(getBasicValueReference(i, PropertyName.RROntrekkingenUitgesteldeBelastingen))
+                .add(getBasicValueReference(i, PropertyName.RROverboekingUitgesteldeBelastingen));
     }
 
-    protected double getAndereKosten(DocumentWrapper document) {
-        double value = Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.RRBedrijfskostenDienstenDiverseGoederen))
-                + Double.parseDouble(document.getPropertiesMap().get(
-                PropertyName.RRBedrijfskostenVoorzieningenRisicosKostenToevoegingenBestedingenTerugnemingen))
-                + Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.RRBedrijfskostenAndereBedrijfskosten))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten));
-        if (Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten)) != Double
-                .parseDouble(document.getPropertiesMap()
-                        .get(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten))) {
-            value += Double.parseDouble(
-                    document.getPropertiesMap().get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
+    protected String getDienstenEnDiverseGoederen(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenDienstenDiverseGoederen);
+    }
+
+    protected String getAndereKosten(int i) {
+        String value = getDienstenEnDiverseGoederen(i)
+                .add(getBasicValueReference(i, PropertyName.RRBedrijfskostenVoorzieningenRisicosKostenToevoegingenBestedingenTerugnemingen))
+                .add(getBasicValueReference(i, PropertyName.RRBedrijfskostenAndereBedrijfskosten))
+                .add(getBasicValueReference(i, PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten));
+
+        if (getBasicValue(i, PropertyName.RRBedrijfskostenUitzonderlijkeKosten) == getBasicValue(i, PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten)) {
+            return value;
         }
-        return value;
+
+        return value.add(getBasicValueReference(i, PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
     }
 
-    protected double getPersoneelskosten(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenBezoldigingenSocialeLastenPensioenen));
+    protected String getPersoneelskosten(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenBezoldigingenSocialeLastenPensioenen);
     }
 
-    protected double getAankopen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffen));
+    protected String getAankopen(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffen);
     }
 
-    protected double getKorteTermijnFinancieleSchulden(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden));
+    protected String getKorteTermijnFinancieleSchulden(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden);
     }
 
-    protected double getLangeTermijnFinancieleSchulden(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1JaarFinancieleSchulden));
+    protected String getLangeTermijnFinancieleSchulden(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchuldenMeer1JaarFinancieleSchulden);
     }
 
-    protected double getLangeTermijnOverigeSchulden(DocumentWrapper document) {
-        return Double.parseDouble(
-                document.getPropertiesMap().get(PropertyName.BPSchuldenMeer1JaarOverigeSchulden));
+    protected String getLangeTermijnOverigeSchulden(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchuldenMeer1JaarOverigeSchulden);
     }
 
-    protected double getTotalePassiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPTotaalPassiva));
+    protected String getTotalePassiva(int i) {
+        return getBasicValueReference(i, PropertyName.BPTotaalPassiva);
     }
 
-    protected double getKorteTermijnSchulden(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1Jaar))
-                + Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPOverlopendeRekeningen));
+    protected String getKorteTermijnSchulden(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchuldenHoogstens1Jaar)
+                .add(getBasicValueReference(i, PropertyName.BPOverlopendeRekeningen));
     }
 
-    protected double getVlottendeActiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVlottendeActiva));
+    protected String getVlottendeActiva(int i) {
+        return getBasicValueReference(i, PropertyName.BAVlottendeActiva);
     }
 
-    protected double getInvesteringen(DocumentWrapper document) {
+    protected String getInvesteringen(int i) {
         // NV
-        return Double.parseDouble(document.getPropertiesMap().get(
-                PropertyName.TLMVAConcessiesOctrooienLicentiesKnowhowMerkenSoortgelijkeRechtenMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLIMVAMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLMVATerreinenEnGebouwenMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLMVAInstallatiesMachinesUitrustingMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLMVAMeubilairRollendMaterieelMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLMVAOverigeMaterieleActivaMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLFVAOndernemingenDeelnemingsverhoudingMutatiesTijdensBoekjaarAanschaffingen))
+        return getBasicValueReference(i, PropertyName.TLMVAConcessiesOctrooienLicentiesKnowhowMerkenSoortgelijkeRechtenMutatiesTijdensBoekjaarAanschaffingen)
+                .add(getBasicValueReference(i, PropertyName.TLIMVAMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLMVATerreinenEnGebouwenMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLMVAInstallatiesMachinesUitrustingMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLMVAMeubilairRollendMaterieelMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLMVAOverigeMaterieleActivaMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLFVAOndernemingenDeelnemingsverhoudingMutatiesTijdensBoekjaarAanschaffingen))
                 // BVBA
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLIMVAMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLMVAMutatiesTijdensBoekjaarAanschaffingen))
-                + Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.TLFVAMutatiesTijdensBoekjaarAanschaffingen));
+                .add(getBasicValueReference(i, PropertyName.TLIMVAMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLMVAMutatiesTijdensBoekjaarAanschaffingen))
+                .add(getBasicValueReference(i, PropertyName.TLFVAMutatiesTijdensBoekjaarAanschaffingen));
     }
 
-    protected double getAfschrijvingen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(
-                PropertyName.RRBedrijfskostenAfschrijvingenWaardeverminderingenOprichtingskostenImmaterieleMaterieleVasteActiva));
+    protected String getAfschrijvingen(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenAfschrijvingenWaardeverminderingenOprichtingskostenImmaterieleMaterieleVasteActiva);
     }
 
-    protected double getVasteActiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVasteActiva));
+    protected String getVasteActiva(int i) {
+        return getBasicValueReference(i, PropertyName.BAVasteActiva);
     }
 
-    protected double getImmaterieleVasteActiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAImmaterieleVasteActiva));
+    protected String getImmaterieleVasteActiva(int i) {
+        return getBasicValueReference(i, PropertyName.BAImmaterieleVasteActiva);
     }
 
-    protected double getMaterieleVasteActiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAMaterieleVasteActiva));
+    protected String getMaterieleVasteActiva(int i) {
+        return getBasicValueReference(i, PropertyName.BAMaterieleVasteActiva);
     }
 
-    protected double getFinancieleVasteActiva(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAFinancieleVasteActiva));
+    protected String getFinancieleVasteActiva(int i) {
+        return getBasicValueReference(i, PropertyName.BAFinancieleVasteActiva);
     }
 
-    protected double getEigenVermogen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPEigenVermogen));
+    protected String getEigenVermogen(int i) {
+        return getBasicValueReference(i, PropertyName.BPEigenVermogen);
     }
 
-    protected double getLeveranciers(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.BPSchuldenHoogstens1JaarHandelsschuldenLeveranciers));
+    protected String getLeveranciers(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchuldenHoogstens1JaarHandelsschuldenLeveranciers);
     }
 
-    protected double getHandelsvorderingen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.BAVorderingenHoogstens1JaarHandelsvorderingen));
+    protected String getHandelsvorderingen(int i) {
+        return getBasicValueReference(i, PropertyName.BAVorderingenHoogstens1JaarHandelsvorderingen);
     }
 
-    protected double getResultaatVoorBelastingen(DocumentWrapper document) {
-        return getEBITDA(document) - getAfschrijvingen(document) - getWaardeVermindering(document)
-                + getFinancieleResultaten(document) + getUitzonderlijkeResultaten(document);
+    protected String getResultaatVoorBelastingen(int i) {
+        return getEBITDA(i)
+                .subtract(getAfschrijvingen(i))
+                .subtract(getWaardeVermindering(i))
+                .add(getFinancieleResultaten(i))
+                .add(getUitzonderlijkeResultaten(i));
     }
 
-    protected double getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen));
+    protected String getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen);
     }
 
-    protected double getUitzonderlijkeResultaten(DocumentWrapper document) {
-        double value = 0;
-        if (Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfsopbrengstenUitzonderlijkeOpbrengsten)) != Double
-                .parseDouble(document.getPropertiesMap()
-                        .get(PropertyName.RRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten))) {
-            value += Double.parseDouble(document.getPropertiesMap()
-                    .get(PropertyName.RRBedrijfsopbrengstenUitzonderlijkeOpbrengsten));
+    protected String getUitzonderlijkeResultaten(int i) {
+        String value = "";
+
+        if (getBasicValue(i, PropertyName.RRBedrijfsopbrengstenUitzonderlijkeOpbrengsten) != getBasicValue(i, PropertyName.RRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten)) {
+            value = getBasicValueReference(i, PropertyName.RRBedrijfsopbrengstenUitzonderlijkeOpbrengsten);
         }
-        if (Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten)) != Double
-                .parseDouble(document.getPropertiesMap()
-                        .get(PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten))) {
-            value -= Double.parseDouble(
-                    document.getPropertiesMap().get(PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
+
+        if (getBasicValue(i, PropertyName.RRBedrijfskostenUitzonderlijkeKosten) != getBasicValue(i, PropertyName.RRBedrijfskostenNietRecurrenteBedrijfskosten)) {
+            value = value.subtract(getBasicValueReference(i, PropertyName.RRBedrijfskostenUitzonderlijkeKosten));
         }
+
+        if (value.isEmpty())
+            return "0";
+
         return value;
     }
 
-    protected double getEBITDA(DocumentWrapper document) {
-        if (reportStyle.equals(ReportStyle.HISTORIEKBVBA) || reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            return getBrutoMarge(document) - getBedrijfskostenVoorBerekeningen(document);
-        } else if (reportStyle.equals(ReportStyle.HISTORIEKNV) || reportStyle.equals(ReportStyle.VERGELIJKINGNV)) {
-            return getBedrijfsOpbrengsten(document) - getBedrijfskostenVoorBerekeningen(document);
+    protected String getEBITDA(int i) {
+        switch (reportType) {
+            case HISTORIEKBVBA:
+            case VERGELIJKINGBVBA:
+                return getBrutoMarge(i)
+                        .subtract(getBedrijfskostenVoorBerekeningen(i)
+                                .inParenthesis());
+            case HISTORIEKNV:
+            case VERGELIJKINGNV:
+                return getBedrijfsOpbrengsten(i)
+                        .subtract(getBedrijfskostenVoorBerekeningen(i)
+                                .inParenthesis());
+            default:
+                return "0";
         }
-        return 0;
     }
 
-    protected double getEBIT(DocumentWrapper document) {
-        return getEBITDA(document) - getAfschrijvingen(document) - getWaardeVermindering(document);
+    protected String getEBIT(int i) {
+        return getEBITDA(i)
+                .subtract(getAfschrijvingen(i))
+                .subtract(getWaardeVermindering(i));
     }
 
-    protected double getFinancieleResultaten(DocumentWrapper document) {
-        double inkom = Double
-                .parseDouble(document.getPropertiesMap().get(PropertyName.RRFinancieleOpbrengsten));
-        if (inkom == 0) {
-            inkom = Double.parseDouble(
-                    document.getPropertiesMap().get(PropertyName.RRFinancieleOpbrengstenRecurrent));
+    protected String getFinancieleResultaten(int i) {
+        String profit = getBasicValueReference(i, PropertyName.RRFinancieleOpbrengsten);
+
+        if (profit.equals("0")) {
+            profit = getBasicValueReference(i, PropertyName.RRFinancieleOpbrengstenRecurrent);
         }
-        double uitgaand = getFinancieleKosten(document);
-        if (uitgaand == 0) {
-            uitgaand = Double
-                    .parseDouble(document.getPropertiesMap().get(PropertyName.RRFinancieleKostenRecurrent));
+
+        String costs = getFinancieleKosten(i);
+
+        if (costs.equals("0")) {
+            costs = getBasicValueReference(i, PropertyName.RRFinancieleKostenRecurrent);
         }
-        return inkom - uitgaand;
+
+        return profit
+                .subtract(costs);
     }
 
-    protected double getFinancieleKosten(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.RRFinancieleKosten));
+    protected String getFinancieleKosten(int i) {
+        return getBasicValueReference(i, PropertyName.RRFinancieleKosten);
     }
 
-    protected double getCoreNettoWerkKapitaal(DocumentWrapper document) {
-        return getVoorradenEnBestellingenInUitvoering(document) + getHandelsvorderingen(document) - getLeveranciers(document);
+    protected String getCoreNettoWerkKapitaal(int i) {
+        return getVoorradenBestellingenUitvoering(i)
+                .add(getHandelsvorderingen(i))
+                .subtract(getLeveranciers(i));
     }
 
-    protected double getCapitalEmployed(DocumentWrapper document) {
-        return getCoreNettoWerkKapitaal(document) + getVasteActiva(document);
+    protected String getCapitalEmployed(int i) {
+        return getCoreNettoWerkKapitaal(i)
+                .add(getVasteActiva(i));
     }
 
-    protected double getBedrijfskostenVoorBerekeningen(DocumentWrapper document) {
-        return getAankopen(document) + getPersoneelskosten(document) + getAndereKosten(document);
+    protected String getBedrijfskostenVoorBerekeningen(int i) {
+        return getAankopen(i)
+                .add(getPersoneelskosten(i))
+                .add(getAndereKosten(i));
     }
 
-    protected double getTotaleBedrijfskosten(DocumentWrapper document) {
-        return Double.parseDouble((document.getPropertiesMap().get(PropertyName.RRBedrijfskosten)));
+    protected String getTotaleBedrijfskosten(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskosten);
     }
 
-    protected double getBrutoMarge(DocumentWrapper document) {
-        if (reportStyle.equals(ReportStyle.HISTORIEKBVBA) || reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BVBABrutomarge));
+    protected String getBrutoMarge(int i) {
+        if (reportType.equals(ReportType.HISTORIEKBVBA) || reportType.equals(ReportType.VERGELIJKINGBVBA)) {
+            return getBasicValueReference(i, PropertyName.BVBABrutomarge);
         } else {
-            return getBedrijfsOpbrengsten(document) - getNietRecurenteBedrijfsopbrengsten(document)
-                    - getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(document)
-                    - getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(document)
-                    - getDienstenEnDiverseGoederen(document);
+            return getBedrijfsOpbrengsten(i)
+                    .subtract(getNietRecurenteBedrijfsopbrengsten(i))
+                    .subtract(getRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen(i))
+                    .subtract(getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(i))
+                    .subtract(getDienstenEnDiverseGoederen(i));
         }
     }
 
-    protected double getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename));
+    protected String getBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename);
     }
 
-    protected double getNietRecurenteBedrijfsopbrengsten(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.RRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten));
+    protected String getNietRecurenteBedrijfsopbrengsten(int i) {
+        return getBasicValueReference(i, PropertyName.RRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten);
     }
 
-    protected double getToegevoegdeWaarde(DocumentWrapper document) {
-        return getBedrijfsOpbrengstenOmzet(document) - getAankopen(document);
+    protected String getToegevoegdeWaarde(int i) {
+        return getBedrijfsOpbrengstenOmzet(i)
+                .subtract(getAankopen(i));
     }
 
-    protected double getAndereSchuldenKorteTermijn(DocumentWrapper document) throws NumberFormatException {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPSchuldenHoogstens1Jaar))
-                + Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPOverlopendeRekeningen))
-                - getLeveranciers(document) - Double.parseDouble(document.getPropertiesMap()
-                .get(PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden));
+    protected String getAndereSchuldenKorteTermijn(int i) throws NumberFormatException {
+        return getBasicValueReference(i, PropertyName.BPSchuldenHoogstens1Jaar)
+                .add(getBasicValueReference(i, PropertyName.BPOverlopendeRekeningen))
+                .subtract(getLeveranciers(i))
+                .subtract(getBasicValueReference(i, PropertyName.BPSchuldenHoogstens1JaarFinancieleSchulden));
     }
 
-    protected double getVoorradenEnBestellingenInUitvoering(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BAVoorradenBestellingenUitvoering));
+    protected String getTotaleSchulden(int i) {
+        return getBasicValueReference(i, PropertyName.BPSchulden);
     }
 
-    protected double getTotaleSchulden(DocumentWrapper document) {
-        return Double.parseDouble(document.getPropertiesMap().get(PropertyName.BPSchulden));
+    protected String getNettoWerkkapitaal(int i) {
+        return getVoorradenBestellingenUitvoering(i)
+                .add(getHandelsvorderingen(i))
+                .subtract(getLeveranciers(i));
     }
 
-    protected double getNettoWerkkapitaal(DocumentWrapper document) {
-        return getVoorradenEnBestellingenInUitvoering(document) + getHandelsvorderingen(document) - getLeveranciers(document);
+    protected String getZScoreAltman(int i) {
+        String x1 = getNettoWerkkapitaal(i)
+                .inParenthesis()
+                .dividedBy(getTotaleActiva(i)
+                        .multipliedBy("0.717")
+                        .inParenthesis());
+        String x2 = getWinstVerliesBoekjaar(i)
+                .dividedBy(getTotaleActiva(i)
+                        .multipliedBy("0.847")
+                        .inParenthesis());
+        String x3 = getEBIT(i)
+                .inParenthesis()
+                .dividedBy(getTotaleActiva(i)
+                        .multipliedBy("3.107")
+                        .inParenthesis());
+        String x4 = getEigenVermogen(i)
+                .dividedBy(getTotaleSchulden(i)
+                        .multipliedBy("0.42")
+                        .inParenthesis());
+        String x5 = getBedrijfsOpbrengstenOmzet(i)
+                .dividedBy(getTotaleActiva(i)
+                        .multipliedBy("0.998")
+                        .inParenthesis());
+
+        return x1.add(x2).add(x3).add(x4).add(x5);
     }
 
-    protected double getZScoreAltman(DocumentWrapper document) {
-        double x1 = getNettoWerkkapitaal(document) / getTotaleActiva(document) * 0.717;
-        double x2 = getWinstVerliesBoekjaar(document) / getTotaleActiva(document) * 0.847;
-        double x3 = getEBIT(document) / getTotaleActiva(document) * 3.107;
-        double x4 = getEigenVermogen(document) / getTotaleSchulden(document) * 0.42;
-        double x5 = getBedrijfsOpbrengstenOmzet(document) / getTotaleActiva(document) * 0.998;
+    // </editor-fold>
 
-        return x1 + x2 + x3 + x4 + x5;
+    // <editor-fold desc="conditional formatting">
+
+    protected ConditionalFormattingRule createConditionalFormattingRule(byte operator, String value) {
+        return createConditionalFormattingRule(operator, value, null);
     }
+
+    protected ConditionalFormattingRule createConditionalFormattingRule(byte operator, String value1, String value2) {
+        return conditionalFormatting.createConditionalFormattingRule(operator, value1, value2);
+    }
+
+    protected void addConditionalFormatting(CellRangeAddress[] regions, ConditionalFormattingRule[] cfRules) {
+        conditionalFormatting.addConditionalFormatting(regions, cfRules);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold desc="current column getters">
+
+    protected String getCurrentSheetColumn() {
+        StringBuilder columnName = new StringBuilder();
+        int columnNumberCopy = columnNumber;
+        int moduloShift = 0;
+
+        do {
+            int modulo = columnNumberCopy % 26;
+            char columnPart = (char) ('A' + modulo);
+
+            if (moduloShift > 0)
+                columnPart = (char) (columnPart - moduloShift);
+
+            columnName.insert(0, columnPart);
+            columnNumberCopy = (columnNumberCopy - modulo) / 26;
+            moduloShift++;
+        } while (columnNumberCopy > 0);
+
+        return columnName.toString();
+    }
+
+    protected String getCurrentCellAsRange() {
+        String columnName = getCurrentSheetColumn();
+
+        return String.format("%s%d:%s%d", columnName, rowNumber, columnName, rowNumber);
+    }
+
+    protected String getCurrentCellAsReference(boolean isAbsolute) {
+        String columnName = getCurrentSheetColumn();
+        StringBuilder reference = new StringBuilder();
+
+        if (isAbsolute) reference.append('$');
+
+        reference.append(columnName);
+        if (isAbsolute) reference.append('$');
+
+        reference.append(rowNumber);
+
+        return reference.toString();
+    }
+
+    // </editor-fold>
 }

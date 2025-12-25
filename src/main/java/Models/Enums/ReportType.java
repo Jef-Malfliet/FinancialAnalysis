@@ -1,6 +1,6 @@
 package Models.Enums;
 
-public enum ReportStyle {
+public enum ReportType {
     HISTORIEKNV,
     HISTORIEKBVBA,
     VERGELIJKINGNV,
