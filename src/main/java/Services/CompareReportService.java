@@ -2,115 +2,117 @@ package Services;
 
 import Models.DocumentWrapper;
 import Models.Enums.ReportStyle;
-import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.*;
 
 import java.util.List;
+import java.util.function.Function;
 
 public class CompareReportService extends ReportService {
 
-    protected HSSFCellStyle defaultNumberStyle;
-    protected HSSFCellStyle greyNumberStyle;
-    protected HSSFCellStyle redNumberStyle;
-    protected HSSFCellStyle greenNumberStyle;
-    protected HSSFCellStyle doubleStyle;
-    protected HSSFCellStyle percentStyle;
-    protected HSSFCellStyle greyStyle;
+    protected XSSFCellStyle defaultNumberStyle;
+    protected XSSFCellStyle greyNumberStyle;
+    protected XSSFCellStyle redNumberStyle;
+    protected XSSFCellStyle twoDecimalsNumberStyle;
+    protected XSSFCellStyle doubleStyle;
+    protected XSSFCellStyle percentStyle;
+    protected XSSFCellStyle greyStyle;
 
     public CompareReportService(
-            HSSFWorkbook workbook, HSSFSheet reportSheet, HSSFSheet basicValuesSheet,
-            List<DocumentWrapper> documents, ReportStyle style, HSSFDataFormat numberFormatter) {
+            XSSFWorkbook workbook, XSSFSheet reportSheet, XSSFSheet basicValuesSheet,
+            List<DocumentWrapper> documents, ReportStyle style, XSSFDataFormat numberFormatter) {
         super(workbook, reportSheet, basicValuesSheet, documents, style, numberFormatter);
     }
 
     @Override
     protected void createInternal() {
-        addCompareReportRow("Naam", d -> d.getBusiness().getName());
-
-        addCompareReportRow("Boekjaar", DocumentWrapper::getYear);
+        addCompareReportHeader();
 
         addCompareReportRow("ACTIVA");
 
-        addCompareReportRow("vlottende activa", d -> Math.round(getVlottendeActiva(d)), defaultNumberStyle);
+        addCompareReportRow("vlottende activa",
+                this::getVlottendeActiva, defaultNumberStyle);
 
-        addCompareReportRow("voorraden en bestellingen in uitvoering", d -> Math.round(getVoorradenEnBestellingenInUitvoering(d)), defaultNumberStyle);
+        addCompareReportRow("voorraden en bestellingen in uitvoering",
+                this::getVoorradenBestellingenUitvoering, defaultNumberStyle);
 
-        addCompareReportRow("handelsvorderingen", d -> Math.round(getHandelsvorderingen(d)), defaultNumberStyle);
+        addCompareReportRow("handelsvorderingen", this::getHandelsvorderingen, defaultNumberStyle);
 
-        addCompareReportRow("liquide middelen", d -> Math.round(getLiquideMiddelen(d)), defaultNumberStyle);
+        addCompareReportRow("liquide middelen",
+                this::getLiquideMiddelen, defaultNumberStyle);
 
-        addCompareReportRow("totale activa", d -> Math.round(getTotaleActiva(d)), defaultNumberStyle);
+        addCompareReportRow("totale activa", this::getTotaleActiva, defaultNumberStyle);
 
         addCompareReportRow("PASSIVA");
 
-        addCompareReportRow("eigen vermogen", d -> Math.round(getEigenVermogen(d)), defaultNumberStyle);
+        addCompareReportRow("eigen vermogen", this::getEigenVermogen, defaultNumberStyle);
 
-        addCompareReportRow("waarvan reserves", d -> Math.round(getReserves(d)), defaultNumberStyle);
+        addCompareReportRow("waarvan reserves",
+                this::getReserves, defaultNumberStyle);
 
-        addCompareReportRow("overgedragen winst", d -> Math.round(getOverdragenWinstVerlies(d)), defaultNumberStyle);
+        addCompareReportRow("overgedragen winst",
+                this::getOverdragenWinstVerlies, defaultNumberStyle);
 
-        addCompareReportRow("totale schulden", d -> Math.round(getTotaleSchulden(d)), defaultNumberStyle);
+        addCompareReportRow("totale schulden", this::getTotaleSchulden, defaultNumberStyle);
 
-        addCompareReportRow("schulden op korte termijn", d -> Math.round(getKorteTermijnSchulden(d)), defaultNumberStyle);
+        addCompareReportRow("schulden op korte termijn", this::getKorteTermijnSchulden, defaultNumberStyle);
 
-        addCompareReportRow("Leveranciersschulden", d -> Math.round(getLeveranciers(d)), defaultNumberStyle);
+        addCompareReportRow("Leveranciersschulden", this::getLeveranciers, defaultNumberStyle);
 
         addCompareReportRow("RESULTATEN");
 
-        addCompareReportRow("bedrijfsopbrengsten", d -> Math.round(getBedrijfsOpbrengsten(d)), defaultNumberStyle);
+        addCompareReportRow("bedrijfsopbrengsten", this::getBedrijfsOpbrengsten, defaultNumberStyle);
 
-        addCompareReportRow("omzet", d -> Math.round(getBedrijfsOpbrengstenOmzet(d)), defaultNumberStyle);
+        addCompareReportRow("omzet", this::getBedrijfsOpbrengstenOmzet, defaultNumberStyle);
 
-        addCompareReportRow("toegevoegde waarde", d -> Math.round(getToegevoegdeWaarde(d)), defaultNumberStyle);
+        addCompareReportRow("toegevoegde waarde", this::getToegevoegdeWaarde, defaultNumberStyle);
 
-        addCompareReportRow("brutomarge", d -> Math.round(getBrutoMarge(d)), defaultNumberStyle);
+        addCompareReportRow("brutomarge", this::getBrutoMarge, defaultNumberStyle);
 
-        addCompareReportRow("ebitda", d -> Math.round(getEBITDA(d)), defaultNumberStyle);
+        addCompareReportRow("ebitda", this::getEBITDA, defaultNumberStyle);
 
-        addCompareReportRow("afschrijvingen", d -> Math.round(getAfschrijvingen(d)), defaultNumberStyle);
+        addCompareReportRow("afschrijvingen", this::getAfschrijvingen, defaultNumberStyle);
 
-        addCompareReportRow("bedrijfswinst (ebit)", d -> Math.round(getEBIT(d)), defaultNumberStyle);
-        ;
+        addCompareReportRow("bedrijfswinst (ebit)", this::getEBIT, defaultNumberStyle);
 
-        addCompareReportRow("winst van boekjaar na belastingen", d -> Math.round(getWinstVerliesBoekjaar(d)), defaultNumberStyle);
-        ;
+        addCompareReportRow("winst van boekjaar na belastingen",
+                this::getWinstVerliesBoekjaar, defaultNumberStyle);
 
         addCompareReportRow("FINANCIËLE RATIO'S");
 
         addCompareReportRow("cashflow, of kasstroom : nettowinst + afschrijvingen",
-                d -> Math.round(getWinstVerliesBoekjaar(d) + getAfschrijvingen(d)), defaultNumberStyle);
+                this::getCashFlow, defaultNumberStyle);
 
         addCompareReportRow("liquiditeitsratio: vlottende activa/schulden op korte termijn (>1)",
-                d -> Math.round(getVlottendeActiva(d) / getKorteTermijnSchulden(d)), doubleStyle);
+                this::getLiquiditeitsRatio, doubleStyle);
 
         addCompareReportRow("solvabiliteitsratio: schulden op korte termijn/totale activa",
-                d -> Math.round(getKorteTermijnSchulden(d) / getTotaleActiva(d)), percentStyle);
+                this::getSolvabiliteitsRatio, percentStyle);
 
         if (reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            addCompareReportRow("bedrijfswinst/omzet", d -> "/", greyStyle, greyStyle);
+            addCompareReportRow("bedrijfswinst/omzet", i -> "/", greyStyle, greyStyle);
         } else {
             addCompareReportRow("bedrijfswinst/omzet",
-                    d -> Math.round(getBedrijfswinstVerlies(d) / getBedrijfsOpbrengstenOmzet(d)),
+                    this::getBedrijfswinstOverOmzet,
                     percentStyle);
         }
 
         if (reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            addCompareReportRow("netto winst/omzet", d -> "/", greyStyle, greyStyle);
+            addCompareReportRow("netto winst/omzet", i -> "/", greyStyle, greyStyle);
         } else {
             addCompareReportRow("netto winst/omzet",
-                    d -> Math.round(getWinstVerliesBoekjaar(d) / getBedrijfsOpbrengstenOmzet(d)),
-                    percentStyle);
+                    this::getNettoWinstOverOmzet, percentStyle);
         }
 
         addCompareReportRow("rentabiliteitsratio vh eigen vermogen: netto winst/eigen vermogen",
-                d -> getWinstVerliesBoekjaar(d) / getEigenVermogen(d), percentStyle);
+                this::getRentabiliteitsRatioEigenVermogen, percentStyle);
 
         if (reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            addCompareReportRow("cash conversion cycle", d -> "/", greyStyle, greyStyle);
+            addCompareReportRow("cash conversion cycle", i -> "/", greyStyle, greyStyle);
         } else {
             addCompareReportRow("cash conversion cycle",
-                    d -> Math.round(getVoorraadrotatie(d) + getKlantenKrediet(d) - getLeveranciersKrediet(d)),
-                    defaultNumberStyle);
+                    this::getCashConversionCycle, defaultNumberStyle);
         }
 
         addCompareReportRow("netto werkkapitaal (voorraden + vorderingen - leveranciers)",
@@ -119,11 +121,34 @@ public class CompareReportService extends ReportService {
         skipRow();
 
         addCompareReportRow("Z score Altman (1,80 > < 2,99)",
-                this::getZScoreAltman, CellType.NUMERIC, d -> {
-                    double value = getZScoreAltman(d);
-                    if (value >= 2.99) return greenNumberStyle;
-                    if (value <= 1.80) return redNumberStyle;
-                    return greyNumberStyle;
+                this::getZScoreAltman, CellType.NUMERIC, i -> {
+
+                    ConditionalFormattingRule greenRule = createConditionalFormattingRule(
+                            ComparisonOperator.GE, "2.99");
+
+                    PatternFormatting greenPatternFmt = greenRule.createPatternFormatting();
+                    greenPatternFmt.setFillForegroundColor(IndexedColors.SEA_GREEN.getIndex());
+                    greenPatternFmt.setFillPattern(FillPatternType.SOLID_FOREGROUND.getCode());
+
+                    ConditionalFormattingRule redRule = createConditionalFormattingRule(
+                            ComparisonOperator.LE, "1.80");
+
+                    PatternFormatting redPatternFmt = redRule.createPatternFormatting();
+                    redPatternFmt.setFillForegroundColor(IndexedColors.RED.getIndex());
+                    redPatternFmt.setFillPattern(FillPatternType.SOLID_FOREGROUND.getCode());
+
+                    ConditionalFormattingRule greyRule = createConditionalFormattingRule(
+                            ComparisonOperator.BETWEEN, "1.80", "2.99");
+
+                    PatternFormatting greyPatternFmt = greyRule.createPatternFormatting();
+                    greyPatternFmt.setFillForegroundColor(IndexedColors.GREY_40_PERCENT.getIndex());
+                    greyPatternFmt.setFillPattern(FillPatternType.SOLID_FOREGROUND.getCode());
+
+                    CellRangeAddress[] ranges = { CellRangeAddress.valueOf(getCurrentCellAsRange()) };
+                    ConditionalFormattingRule[] rules = { greenRule, redRule, greyRule };
+                    addConditionalFormatting(ranges, rules);
+
+                    return twoDecimalsNumberStyle;
                 }, null, 1);
 
         addCompareReportRow("PERSONEEL");
@@ -135,7 +160,7 @@ public class CompareReportService extends ReportService {
                 this::getGepresteerdeUren, defaultNumberStyle);
 
         addCompareReportRow("personeelskosten (1023)",
-                this::getSBPersoneelsKosten, defaultNumberStyle);
+                this::getPersoneelskosten, defaultNumberStyle);
 
         skipRow();
 
@@ -157,74 +182,74 @@ public class CompareReportService extends ReportService {
                 this::getAantalBediendenOpEindeBoekjaar, doubleStyle);
 
         addCompareReportRow("arbeiders op 31/12 (134/3)",
-                this::getAantalArbeiderssOpEindeBoekjaar, doubleStyle);
+                this::getAantalArbeidersOpEindeBoekjaar, doubleStyle);
 
         addCompareReportRow("PERSONEELRATIO'S");
 
         addCompareReportRow("personeelskost/aantal FTE",
-                d -> Math.round(getSBPersoneelsKosten(d) / getGemiddeldeAantalFTE(d)),
+                this::getPersoneelkostOverFTE,
                 defaultNumberStyle);
 
         addCompareReportRow("personeelskost/gepresteerde uren",
-                d -> Math.round(getSBPersoneelsKosten(d) / getGepresteerdeUren(d)),
+                this::getPersoneelskostGepresteerdeUren,
                 doubleStyle);
 
         skipRow();
 
         addCompareReportRow("personeelskost uitzendkrachten/aantal FTE uitzendkrachten",
-                d -> Math.round(getPersoneelskostenUitzendkrachten(d) / getGemiddeldeAantalFTEUitzendkrachten(d)),
+                this::getPersoneelkostenUitzendkrachtenOverGemiddeldeFTE,
                 defaultNumberStyle);
 
         addCompareReportRow("personeelskost uitzendkrachten/aantal FTE uitzendkrachten",
-                d -> Math.round(getPersoneelskostenUitzendkrachten(d) / getGepresteerdeUrenUitzendkrachten(d)),
+                this::getPersoneelkostenUitzendkrachtenOverFTE,
                 doubleStyle);
 
         skipRow();
 
         if (reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
             addCompareReportRow("omzet/totaal aantal gepresteerde uren (eigen + interim)",
-                    d -> "/", greyStyle, greyStyle);
+                    i -> "/", greyStyle, greyStyle);
         } else {
             addCompareReportRow("omzet/totaal aantal gepresteerde uren (eigen + interim)",
-                    d -> getBedrijfsOpbrengstenOmzet(d) / (getGepresteerdeUrenUitzendkrachten(d) + getGepresteerdeUren(d)),
+                    this::getOmzetOverAantalGepresteerdeUren,
                     doubleStyle, null);
         }
 
         addCompareReportRow("netto winst/totaal aantal gepresteerde uren (eigen + interim)",
-                d -> getWinstVerliesBoekjaar(d) / (getGepresteerdeUrenUitzendkrachten(d) + getGepresteerdeUren(d)),
+                this::getNettoWinstOverAantalGepresteerdeUren,
                 doubleStyle);
 
         addCompareReportRow("cashflow/totaal aantal gepresteerde uren (eigen + interim)",
-                d -> getCashFlow(d) / (getGepresteerdeUrenUitzendkrachten(d) + getGepresteerdeUren(d)),
+                this::getCashflowOverAantalGepresteerdeUren,
                 doubleStyle);
 
         skipRow();
 
         addCompareReportRow("verhouding arbeiders/bedienden (31/12)",
-                d -> getAantalArbeiderssOpEindeBoekjaar(d) / getAantalBediendenOpEindeBoekjaar(d),
+                this::getVerhoudingArbeidersBedienden,
                 doubleStyle);
 
         if (reportStyle.equals(ReportStyle.VERGELIJKINGBVBA)) {
             addCompareReportRow("omzet/bediende (31/12)",
-                    d -> "/", greyStyle, greyStyle);
+                    i -> "/", greyStyle, greyStyle);
         } else {
             addCompareReportRow("omzet/bediende (31/12)",
-                    d -> getBedrijfsOpbrengstenOmzet(d) / getAantalBediendenOpEindeBoekjaar(d),
+                    this::getOmzetOverAantalBedienden,
                     defaultNumberStyle, null);
         }
 
         addCompareReportRow("netto winst/bediende (31/12)",
-                d -> getWinstVerliesBoekjaar(d) / getAantalBediendenOpEindeBoekjaar(d),
+                this::getNettoWinstOverAantalBedienden,
                 defaultNumberStyle);
 
         addCompareReportRow("netto winst bediende (31/12) per uur: netto winst/bediende (31/12)/1744",
-                d -> (getWinstVerliesBoekjaar(d) / getAantalBediendenOpEindeBoekjaar(d)) / 1744,
+                this::getNettoWinstBediendePerUur,
                 doubleStyle);
     }
 
     @Override
     protected void initializeStyles() {
-        HSSFFont fontBold = workbook.createFont();
+        XSSFFont fontBold = workbook.createFont();
         fontBold.setBold(true);
 
         greyStyle = workbook.createCellStyle();
@@ -245,10 +270,8 @@ public class CompareReportService extends ReportService {
         redNumberStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         redNumberStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
 
-        greenNumberStyle = workbook.createCellStyle();
-        greenNumberStyle.setFillForegroundColor(IndexedColors.SEA_GREEN.getIndex());
-        greenNumberStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        greenNumberStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
+        twoDecimalsNumberStyle = workbook.createCellStyle();
+        twoDecimalsNumberStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
 
         percentStyle = workbook.createCellStyle();
         percentStyle.setDataFormat(numberFormatter.getFormat("### ### ##0.00%"));
@@ -256,4 +279,108 @@ public class CompareReportService extends ReportService {
         doubleStyle = workbook.createCellStyle();
         doubleStyle.setDataFormat(numberFormatter.getFormat("### ### ##0.00"));
     }
+
+    //<editor-fold desc="addCompareReportRow">
+
+    private void addCompareReportRow(String rowName) {
+        addCompareReportRow(rowName, null, null, d -> null, null, 0);
+    }
+
+    private void addCompareReportHeader() {
+        XSSFRow nameRow = addRow(reportSheet, 2);
+        addCell(nameRow, "Naam");
+
+        for (DocumentWrapper document : documents)
+            addCell(nameRow, document.getBusiness().getName());
+
+        XSSFRow yearRow = addRow(reportSheet, 2);
+        addCell(yearRow, "Boekjaar");
+
+        for (DocumentWrapper document : documents)
+            addCell(nameRow, document.getYear());
+    }
+
+    private void addCompareReportRow(String rowName, Function<Integer, String> formulaFunction, XSSFCellStyle valueStyle) {
+        addCompareReportRow(rowName, formulaFunction, CellType.NUMERIC, d -> valueStyle, null, 1);
+    }
+
+    private void addCompareReportRow(String rowName, Function<Integer, String> formulaFunction, XSSFCellStyle valueStyle, XSSFCellStyle titleStyle) {
+        addCompareReportRow(rowName, formulaFunction, CellType.NUMERIC, d -> valueStyle, titleStyle, 1);
+    }
+
+    private void addCompareReportRow(String rowName, Function<Integer, String> formulaFunction, CellType cellType, Function<DocumentWrapper, XSSFCellStyle> valueStyleFunction, XSSFCellStyle titleStyle, int initialColumnIndex) {
+        XSSFRow row = addRow(reportSheet, initialColumnIndex);
+        Cell titleCell = row.createCell(initialColumnIndex);
+
+        titleCell.setCellValue(rowName);
+
+        if (titleStyle != null) titleCell.setCellStyle(titleStyle);
+
+        if (formulaFunction != null) {
+            int columnIndex = initialColumnIndex + 1;
+
+            for (int i = 0; i < documentCount; i++) {
+                if (reportStyle != null) {
+                    XSSFCellStyle style = valueStyleFunction.apply(documents.get(i));
+                    addReferenceCell(row, columnIndex + i, formulaFunction.apply(i), style, cellType);
+                } else {
+                    addReferenceCell(row, columnIndex + i, formulaFunction.apply(i), cellType);
+                }
+            }
+        }
+    }
+
+    //</editor-fold>
+
+    // <editor-fold desc="getters">
+
+    private String getBedrijfswinstOverOmzet(Integer i) {
+        return getBedrijfsWinstVerlies(i).dividedBy(getBedrijfsOpbrengstenOmzet(i));
+    }
+
+    private String getPersoneelkostOverFTE(Integer i) {
+        return getPersoneelskosten(i).dividedBy(getGemiddeldeAantalFTE(i)).rounded(0);
+    }
+
+    private String getPersoneelskostGepresteerdeUren(Integer i) {
+        return getPersoneelskosten(i).dividedBy(getGepresteerdeUren(i)).rounded(0);
+    }
+
+    private String getPersoneelkostenUitzendkrachtenOverGemiddeldeFTE(Integer i) {
+        return getPersoneelskostenUitzendkrachten(i).dividedBy(getGemiddeldeAantalFTEUitzendkrachten(i)).rounded(0);
+    }
+
+    private String getPersoneelkostenUitzendkrachtenOverFTE(Integer i) {
+        return getPersoneelskostenUitzendkrachten(i).dividedBy(getGepresteerdeUrenUitzendkrachten(i)).rounded(0);
+    }
+
+    private String getOmzetOverAantalGepresteerdeUren(Integer i) {
+        return getBedrijfsOpbrengstenOmzet(i).dividedBy(getGepresteerdeUrenUitzendkrachten(i)).add(getGepresteerdeUren(i));
+    }
+
+    private String getNettoWinstOverAantalGepresteerdeUren(Integer i) {
+        return getWinstVerliesBoekjaar(i).dividedBy(getGepresteerdeUrenUitzendkrachten(i)).add(getGepresteerdeUren(i));
+    }
+
+    private String getCashflowOverAantalGepresteerdeUren(Integer i) {
+        return getCashFlow(i).inParenthesis().dividedBy(getGepresteerdeUrenUitzendkrachten(i).add(getGepresteerdeUren(i)).inParenthesis());
+    }
+
+    private String getVerhoudingArbeidersBedienden(Integer i) {
+        return getAantalArbeidersOpEindeBoekjaar(i).dividedBy(getAantalBediendenOpEindeBoekjaar(i));
+    }
+
+    private String getOmzetOverAantalBedienden(Integer i) {
+        return getBedrijfsOpbrengstenOmzet(i).dividedBy(getAantalBediendenOpEindeBoekjaar(i));
+    }
+
+    private String getNettoWinstOverAantalBedienden(Integer i) {
+        return getWinstVerliesBoekjaar(i).dividedBy(getAantalBediendenOpEindeBoekjaar(i));
+    }
+
+    private String getNettoWinstBediendePerUur(Integer i) {
+        return getWinstVerliesBoekjaar(i).dividedBy(getAantalBediendenOpEindeBoekjaar(i)).inParenthesis().dividedBy("1744");
+    }
+
+    // </editor-fold>
 }

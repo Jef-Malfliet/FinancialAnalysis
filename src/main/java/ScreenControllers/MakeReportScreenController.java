@@ -1,7 +1,6 @@
 package ScreenControllers;
 
 import Services.*;
-import StartUp.StartApplication;
 import Util.DocumentWrapperYearComparator;
 import Models.ErrorObject;
 import Models.DocumentWrapper;
@@ -19,8 +18,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.awt.*;
 import java.io.File;
@@ -39,12 +38,12 @@ public class MakeReportScreenController extends VBox {
     private final DirectoryChooser directoryChooser;
     private final StartScreenController startScreenController;
     private final ReportStyle style;
-    private final HSSFWorkbook workbook;
+    private final XSSFWorkbook workbook;
     private final List<DocumentWrapper> documents;
     private final SettingsScreenController settingsScreenController;
     private File directoryFile;
-    private HSSFSheet reportSheet;
-    private HSSFSheet ratiosSheet;
+    private XSSFSheet reportSheet;
+    private XSSFSheet basicValuesSheet;
     private final XmlUtil xmlUtil = new XmlUtil();
     // endregion
 
@@ -79,7 +78,7 @@ public class MakeReportScreenController extends VBox {
         directoryChooser.setTitle("Select directory");
         this.style = style;
         this.documents = new ArrayList<>();
-        this.workbook = new HSSFWorkbook();
+        this.workbook = new XSSFWorkbook();
 
         buildGui();
     }
@@ -122,7 +121,7 @@ public class MakeReportScreenController extends VBox {
             AlertService.showAlert(error.key, error.key, error.message, this.getScene().getWindow(), AlertType.ERROR);
         else {
             reportSheet = workbook.createSheet(tfName.getText());
-            ratiosSheet = workbook.createSheet("ratios");
+            basicValuesSheet = workbook.createSheet("basic values");
             error = writeReport();
             if (error != null)
                 AlertService.showAlert(error.key, error.key, error.message, this.getScene().getWindow(),
@@ -176,7 +175,7 @@ public class MakeReportScreenController extends VBox {
     private ErrorObject writeReport() {
         try {
             String slash = System.getProperty("os.name").startsWith("Windows") ? "\\" : "/";
-            File file = new File(tfLocation.getText() + slash + tfName.getText() + ".xls");
+            File file = new File(tfLocation.getText() + slash + tfName.getText() + ".xlsx");
 
             try (FileOutputStream out = new FileOutputStream(file)) {
                 prepareDocuments();
@@ -198,10 +197,10 @@ public class MakeReportScreenController extends VBox {
 
     private void createReport() {
         if (!style.equals(ReportStyle.VERGELIJKINGNV) && !style.equals(ReportStyle.VERGELIJKINGBVBA)) {
-            (new HistoryReportService(workbook, reportSheet, ratiosSheet, documents, style,
+            (new HistoryReportService(workbook, reportSheet, basicValuesSheet, documents, style,
                     workbook.createDataFormat())).create();
         } else {
-            (new CompareReportService(workbook, reportSheet, ratiosSheet, documents, style,
+            (new CompareReportService(workbook, reportSheet, basicValuesSheet, documents, style,
                     workbook.createDataFormat())).create();
         }
 
@@ -244,7 +243,6 @@ public class MakeReportScreenController extends VBox {
                 .addRRBedrijfskostenWaardeverminderingenVoorradenBestellingenUitvoeringHandelsvorderingenToevoegingenTerugnemingen()
                 .addRRFinancieleKosten()
                 .addRRFinancieleKostenRecurrent()
-                .addRRFinancieleKostenNietRecurrent()
                 .addRRFinancieleOpbrengsten()
                 .addRRFinancieleOpbrengstenRecurrent()
                 .addRRBedrijfskostenNietRecurrenteBedrijfskosten()
@@ -260,7 +258,6 @@ public class MakeReportScreenController extends VBox {
                 .addSBGemiddeldeFTE()
                 .addSBGepresteerdeUren()
                 .addSBGemiddeldAantalFTEUitzendkrachten()
-                .addSBPersoneelskosten()
                 .addSBGepresteerdeUrenUitzendkrachten()
                 .addSBPersoneelskostenUitzendkrachten()
                 .addSBAantalWerknemersOpEindeBoekjaar()
@@ -327,8 +324,6 @@ public class MakeReportScreenController extends VBox {
                 .addTLMVAMeubilairRollendMaterieelMutatiesTijdensBoekjaarAanschaffingen()
                 .addTLMVAOverigeMaterieleActivaMutatiesTijdensBoekjaarAanschaffingen()
                 .addTLFVAOndernemingenDeelnemingsverhoudingMutatiesTijdensBoekjaarAanschaffingen()
-                .addTLFVAAndereOndernemingenMutatiesTijdensBoekjaarAanschaffingen()
-                .addBAOndernemingenDeelnemingsverhoudingDeelnemingen()
                 .addBVBABrutomarge()
                 .addRRBedrijfskostenHandelsgoederenGrondHulpstoffenAankopen()
                 .addRRBedrijfskostenHandelsgoederenGrondHulpstoffenVoorraadAfnameToename()

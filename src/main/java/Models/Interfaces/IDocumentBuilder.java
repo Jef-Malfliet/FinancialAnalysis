@@ -1,15 +1,10 @@
 package Models.Interfaces;
 
-import Models.Business;
 import Models.DocumentWrapper;
 
 public interface IDocumentBuilder {
 
     String getName();
-
-    int getYear();
-
-    Business getBusiness();
 
     boolean isSelected();
 
@@ -17,8 +12,6 @@ public interface IDocumentBuilder {
 
     //BALANS NA WINSTVERDELING
     //ACTIVA
-    //OPRICHTINGSKOSTEN
-    IDocumentBuilder addBAOprichtingskosten();
 
     //VASTE ACTIVA
     IDocumentBuilder addBAVasteActiva();
@@ -29,77 +22,17 @@ public interface IDocumentBuilder {
     //MATERIËLE ACTIVA
     IDocumentBuilder addBAMaterieleVasteActiva();
 
-    IDocumentBuilder addBATerreinenGebouwen();
-
-    IDocumentBuilder addBAInstallatiesMachinesUitrusting();
-
-    IDocumentBuilder addBAMeubilairRollendMaterieel();
-
-    IDocumentBuilder addBALeasingSoortgelijkeRechten();
-
-    IDocumentBuilder addBAOverigeMaterieleVasteActiva();
-
-    IDocumentBuilder addBAActivaAanbouwVooruitbetalingen();
-
     //FINANCIËLE ACTIVA
     IDocumentBuilder addBAFinancieleVasteActiva();
-
-    IDocumentBuilder addBAVerbondenOndernemingen();
-
-    IDocumentBuilder addBAVerbondenOndernemingenDeelnemingen();
-
-    IDocumentBuilder addBAVerbondenOndernemingenVorderingen();
-
-    IDocumentBuilder addBAOndernemingenDeelnemingsverhouding();
-
-    IDocumentBuilder addBAOndernemingenDeelnemingsverhoudingDeelnemingen();
-
-    IDocumentBuilder addBAOndernemingenDeelnemingsverhoudingVorderingen();
-
-    IDocumentBuilder addBAAndereFinancieleVasteActiva();
-
-    IDocumentBuilder addBAAndereFinancieleVasteActivaAandelen();
-
-    IDocumentBuilder addBAAndereFinancieleVasteActivaVorderingenBorgtochtenContanten();
 
     //VLOTTENDE ACTIVA
     IDocumentBuilder addBAVlottendeActiva();
 
-    IDocumentBuilder addBAVorderingenMeer1Jaar();
-
-    IDocumentBuilder addBAVorderingenMeer1JaarHandelsvorderingen();
-
-    IDocumentBuilder addBAVorderingenMeer1JaarOverigeVorderingen();
-
     IDocumentBuilder addBAVoorradenBestellingenUitvoering();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorraden();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenGrondHulpstoffen();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenGoederenBewerking();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenGereedProduct();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenHandelsgoederen();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenOnroerendeGoederenVerkoop();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringVoorradenVooruitbetalingen();
-
-    IDocumentBuilder addBAVoorradenBestellingenUitvoeringBestellingenUitvoer();
-
-    IDocumentBuilder addBAVorderingenHoogstens1Jaar();
 
     IDocumentBuilder addBAVorderingenHoogstens1JaarHandelsvorderingen();
 
     IDocumentBuilder addBAVorderingenHoogstens1JaarOverigeVorderingen();
-
-    IDocumentBuilder addBAGeldBeleggingen();
-
-    IDocumentBuilder addBAGeldBeleggingenEigenAandelen();
-
-    IDocumentBuilder addBAGeldBeleggingenOverigeBeleggingen();
 
     IDocumentBuilder addBALiquideMiddelen();
 
@@ -111,50 +44,12 @@ public interface IDocumentBuilder {
     //EIGEN VERMOGEN
     IDocumentBuilder addBPEigenVermogen();
 
-    IDocumentBuilder addBPKapitaal();
-
-    IDocumentBuilder addBPKapitaalGeplaatst();
-
-    IDocumentBuilder addBPKapitaalNietOpgevraagd();
-
-    IDocumentBuilder addBPUitgiftepremies();
-
-    IDocumentBuilder addBPHerwaarderingsmeerwaarden();
-
     IDocumentBuilder addBPReserves();
-
-    IDocumentBuilder addBPReservesWettelijkeReserve();
-
-    IDocumentBuilder addBPReservesOnbeschikbareReserves();
-
-    IDocumentBuilder addBPReservesOnbeschikbareReservesEigenAandelen();
-
-    IDocumentBuilder addBPReservesOnbeschikbareReservesAndere();
-
-    IDocumentBuilder addBPReservesBelastingvrijeReserves();
-
-    IDocumentBuilder addBPReservesBeschikbareReserves();
 
     IDocumentBuilder addBPOvergedragenWinstVerlies();
 
-    IDocumentBuilder addBPKapitaalSubsidies();
-
-    IDocumentBuilder addBPVoorschotVennotenVerdelingNettoActief();
-
     //VOORZIENINGEN EN UITGESTELDE BELASTINGEN
     IDocumentBuilder addBPVoorzieningenUitgesteldeBelastingen();
-
-    IDocumentBuilder addBPVoorzieningenRisicosKosten();
-
-    IDocumentBuilder addBPVoorzieningenRisicosKostenPensioenenSoortelijkeVerplichtingen();
-
-    IDocumentBuilder addBPVoorzieningenRisicosKostenFiscaleLasten();
-
-    IDocumentBuilder addBPVoorzieningenRisicosKostenGroteHerstellingsOnderhoudswerken();
-
-    IDocumentBuilder addBPVoorzieningenRisicosKostenMilieuverplichtingen();
-
-    IDocumentBuilder addBPVoorzieningenRisicosKostenOverige();
 
     IDocumentBuilder addBPSchulden();
 
@@ -162,49 +57,13 @@ public interface IDocumentBuilder {
 
     IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchulden();
 
-    IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenAchtergesteldeLeningen();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenNietAchtergesteldeObligatieleningen();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenLeasingschuldenSoortgelijkeSchulden();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenKredietinstellingen();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarFinancieleSchuldenOverigeLeningen();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarHandelsschulden();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarHandelsschuldenTeBetalenWissels();
-
-    IDocumentBuilder addBPSchuldenMeer1JaarOntvangenVooruitbetalingenBestellingen();
-
     IDocumentBuilder addBPSchuldenMeer1JaarOverigeSchulden();
 
     IDocumentBuilder addBPSchuldenHoogstens1Jaar();
 
-    IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenMeer1JaarBinnenJaarVervallen();
-
     IDocumentBuilder addBPSchuldenHoogstens1JaarFinancieleSchulden();
 
-    IDocumentBuilder addBPSchuldenHoogstens1JaarFinancieleSchuldenKredietinstellingen();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarFinancieleSchuldenOverigeLeningen();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarHandelsschulden();
-
     IDocumentBuilder addBPSchuldenHoogstens1JaarHandelsschuldenLeveranciers();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarHandelsschuldenTeBetalenWissels();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarOntvangenVooruitbetalingenBestellingen();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLasten();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLastenBelastingen();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarSchuldenBelastingenBezoldigingenSocialeLastenBezoldigingenSocialeLasten();
-
-    IDocumentBuilder addBPSchuldenHoogstens1JaarOverigeSchulden();
 
     IDocumentBuilder addBPOverlopendeRekeningen();
 
@@ -215,12 +74,6 @@ public interface IDocumentBuilder {
     IDocumentBuilder addRRBedrijfsopbrengsten();
 
     IDocumentBuilder addRRBedrijfsopbrengstenOmzet();
-
-    IDocumentBuilder addRRBedrijfsopbrengstenToenameAfnameVoorraadGoederenBewerkingGereedProductBestellingenUitvoering();
-
-    IDocumentBuilder addRRBedrijfsopbrengstenGeproduceerdeVasteActiva();
-
-    IDocumentBuilder addRRBedrijfsopbrengstenAndereBedrijfsopbrengsten();
 
     IDocumentBuilder addRRBedrijfsopbrengstenNietRecurrenteBedrijfsopbrengsten();
 
@@ -245,8 +98,6 @@ public interface IDocumentBuilder {
 
     IDocumentBuilder addRRBedrijfskostenAndereBedrijfskosten();
 
-    IDocumentBuilder addRRBedrijfskostenHerstructureringskostenGeactiveerdeBedrijfskosten();
-
     IDocumentBuilder addRRBedrijfskostenNietRecurrenteBedrijfskosten();
 
     IDocumentBuilder addRRBedrijfskostenUitzonderlijkeKosten();
@@ -261,29 +112,12 @@ public interface IDocumentBuilder {
 
     IDocumentBuilder addRRFinancieleOpbrengstenRecurrent();
 
-    IDocumentBuilder addRRFinancieleOpbrengstenRecurrentOpbrengstenFinancieleVasteActiva();
-
-    IDocumentBuilder addRRFinancieleOpbrengstenRecurrentOpbrengstenVlottendeActiva();
-
-    IDocumentBuilder addRRFinancieleOpbrengstenRecurrentAndereFinancieleOpbrengsten();
-
-    IDocumentBuilder addRRFinancieleOpbrengstenNietRecurrent();
-
     //FINANCIËLE KOSTEN
     IDocumentBuilder addRRFinancieleKosten();
 
     IDocumentBuilder addRRFinancieleKostenRecurrent();
 
-    IDocumentBuilder addRRFinancieleKostenRecurrentKostenSchulden();
-
-    IDocumentBuilder addRRFinancieleKostenRecurrentWaardeverminderingenVlottendeActivaAndereVoorradenBestellingenUitvoeringHandelvorderingenToevoegingenTerugnemingen();
-
-    IDocumentBuilder addRRFinancieleKostenRecurrentAndereFinancieleKosten();
-
-    IDocumentBuilder addRRFinancieleKostenNietRecurrent();
-
     //ANDERE
-    IDocumentBuilder addRRWinstVerliesBoekjaarVoorBelastingen();
 
     IDocumentBuilder addRROntrekkingenUitgesteldeBelastingen();
 
@@ -291,17 +125,7 @@ public interface IDocumentBuilder {
 
     IDocumentBuilder addRRBelastingenOpResultaat();
 
-    IDocumentBuilder addRRBelastingenOpResultaatBelastingen();
-
-    IDocumentBuilder addRRBelastingenOpResultaatRegulariseringBelastingenTerugnemingVoorzieningenBelastingen();
-
     IDocumentBuilder addRRWinstVerliesBoekjaar();
-
-    IDocumentBuilder addRROntrekkingBelastingvrijeReserves();
-
-    IDocumentBuilder addRROverboekingBelastingvrijeReserves();
-
-    IDocumentBuilder addRRTeBestemmenWinstVerliesBoekjaar();
 
     IDocumentBuilder addTLMVAMutatiesTijdensBoekjaarAanschaffingen();
 
@@ -321,16 +145,12 @@ public interface IDocumentBuilder {
 
     IDocumentBuilder addTLFVAOndernemingenDeelnemingsverhoudingMutatiesTijdensBoekjaarAanschaffingen();
 
-    IDocumentBuilder addTLFVAAndereOndernemingenMutatiesTijdensBoekjaarAanschaffingen();
-
     //SOCIALE BALANS
     IDocumentBuilder addSBGemiddeldeFTE();
 
     IDocumentBuilder addSBGepresteerdeUren();
 
     IDocumentBuilder addSBGemiddeldAantalFTEUitzendkrachten();
-
-    IDocumentBuilder addSBPersoneelskosten();
 
     IDocumentBuilder addSBGepresteerdeUrenUitzendkrachten();
 

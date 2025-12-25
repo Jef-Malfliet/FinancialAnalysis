@@ -12,5 +12,4 @@ public interface IDocumentWrapper {
     Business getBusiness();
 
     Map<PropertyName, String> getPropertiesMap();
-
 }

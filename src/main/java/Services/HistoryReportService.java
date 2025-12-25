@@ -2,42 +2,44 @@ package Services;
 
 import Models.DocumentWrapper;
 import Models.Enums.ReportStyle;
-import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.*;
 
 import java.util.List;
+import java.util.function.Function;
 
 public class HistoryReportService extends ReportService {
 
-    private HSSFCellStyle BoldGreenCenter;
-    private HSSFCellStyle BoldGreen;
-    private HSSFCellStyle BoldGreenNumber;
-    private HSSFCellStyle Bold;
-    private HSSFCellStyle BoldGrey;
-    private HSSFCellStyle BoldYellow;
-    private HSSFCellStyle BoldLightGrey;
-    private HSSFCellStyle BoldBottom;
-    private HSSFCellStyle BoldBottomTop;
-    private HSSFCellStyle BoldBlue;
-    private HSSFCellStyle BottomNormal;
-    private HSSFCellStyle BoldTop;
-    private HSSFCellStyle BoldNumber;
-    private HSSFCellStyle BoldYellowNumber;
-    private HSSFCellStyle BoldLightGreyNumber;
-    private HSSFCellStyle BoldBottomNumber;
-    private HSSFCellStyle BoldTopNumber;
-    private HSSFCellStyle BoldTopDouble;
-    private HSSFCellStyle PercentStyleBold;
-    private HSSFCellStyle DoubleStyleBold;
-    private HSSFCellStyle DoubleStyleBoldTop;
-    private HSSFCellStyle PercentStyleBoldBottom;
-    private HSSFCellStyle Grey;
-    private HSSFCellStyle NumberBottomTop;
-    private HSSFCellStyle PercentStyleBoldBottomTop;
+    private XSSFCellStyle BoldGreenCenter;
+    private XSSFCellStyle BoldGreen;
+    private XSSFCellStyle BoldGreenNumber;
+    private XSSFCellStyle Bold;
+    private XSSFCellStyle BoldGrey;
+    private XSSFCellStyle BoldYellow;
+    private XSSFCellStyle BoldLightGrey;
+    private XSSFCellStyle BoldBottom;
+    private XSSFCellStyle BoldBottomTop;
+    private XSSFCellStyle BoldBlue;
+    private XSSFCellStyle BoldBlueNumber;
+    private XSSFCellStyle BottomNormal;
+    private XSSFCellStyle BoldTop;
+    private XSSFCellStyle BoldNumber;
+    private XSSFCellStyle BoldYellowNumber;
+    private XSSFCellStyle BoldLightGreyNumber;
+    private XSSFCellStyle BoldBottomNumber;
+    private XSSFCellStyle BoldTopNumber;
+    private XSSFCellStyle BoldTopDouble;
+    private XSSFCellStyle PercentStyleBold;
+    private XSSFCellStyle DoubleStyleBold;
+    private XSSFCellStyle DoubleStyleBoldTop;
+    private XSSFCellStyle PercentStyleBoldBottom;
+    private XSSFCellStyle Grey;
+    private XSSFCellStyle NumberBottomTop;
+    private XSSFCellStyle PercentStyleBoldBottomTop;
 
     public HistoryReportService(
-            HSSFWorkbook workbook, HSSFSheet reportSheet, HSSFSheet ratiosSheet,
-            List<DocumentWrapper> documents, ReportStyle style, HSSFDataFormat numberFormatter) {
+            XSSFWorkbook workbook, XSSFSheet reportSheet, XSSFSheet ratiosSheet,
+            List<DocumentWrapper> documents, ReportStyle style, XSSFDataFormat numberFormatter) {
         super(workbook, reportSheet, ratiosSheet, documents, style, numberFormatter);
     }
 
@@ -47,127 +49,128 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportHeaderRow(BoldBottomTop, BoldTop, BoldGrey);
 
-        String text1 = documents.get(0).getBusiness().getName() +
+        String title = documents.get(0).getBusiness().getName() +
                 (reportStyle.equals(ReportStyle.HISTORIEKNV) ? " NV" : " BVBA");
 
         addHistoryReportRow(
-                text1, BoldGreenCenter,
+                title, BoldGreenCenter,
                 null, null,
                 "CORE NETTO WERK KAPITAAL", Bold,
                 "voorraden+vorderingen-leveranciers", null,
-                d -> Math.round(getCoreNettoWerkKapitaal(d)), BoldNumber);
+                this::getCoreNettoWerkKapitaal, BoldNumber);
 
         skipRow();
 
         addHistoryReportRow(
                 "CAPITAL EMPLOYED", BoldBottom,
                 "netto werkkapitaal+vaste activa", BottomNormal,
-                d -> Math.round(getCapitalEmployed(d)), BoldBottomNumber);
+                this::getCapitalEmployed, BoldBottomNumber);
 
-        addHistoryReportRow("BALANS ACTIVA", BoldGrey, DocumentWrapper::getYear, BoldGrey);
+        addHistoryReportRow("BALANS ACTIVA", BoldGrey, this::getYear, BoldGrey);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "EBIT MARGE", BoldTop,
                     "EBIT", BoldBottomTop,
-                    d -> getEBIT(d) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    this::getEBITMarge, PercentStyleBold);
         } else {
             addHistoryReportRow(
                     "EBIT MARGE", Grey,
                     "EBIT", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "VASTE ACTIVA", BoldYellow,
-                d -> Math.round(getVasteActiva(d)), BoldYellowNumber,
+                this::getVasteActiva, BoldYellowNumber,
                 null, null,
-                "Omzet", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey);
+                "OMZET", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey);
 
         addHistoryReportRow(
                 "IMMATERIELE (evt. Goodwill)", Bold,
-                d -> Math.round(getImmaterieleVasteActiva(d)), BoldNumber);
+                this::getImmaterieleVasteActiva, BoldNumber);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "MATERIELE", Bold,
-                    d -> Math.round(getMaterieleVasteActiva(d)), BoldNumber,
+                    this::getMaterieleVasteActiva, BoldNumber,
                     "EBITDA MARGE", Bold,
                     "EBITDA", BoldBottom,
-                    d -> getEBITDA(d) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    this::getEBITDAMarge, PercentStyleBold);
         } else {
             addHistoryReportRow(
                     "MATERIELE", Bold,
-                    d -> Math.round(getMaterieleVasteActiva(d)), BoldNumber,
+                    this::getMaterieleVasteActiva, BoldNumber,
                     "EBITDA MARGE", Grey,
                     "EBITDA", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "FINANCIELE", Bold,
-                    d -> Math.round(getFinancieleVasteActiva(d)), BoldNumber,
+                    this::getFinancieleVasteActiva, BoldNumber,
                     "> 12-15%", Bold,
                     "OMZET", Bold);
         } else {
             addHistoryReportRow(
                     "FINANCIELE", Bold,
-                    d -> Math.round(getFinancieleVasteActiva(d)), BoldNumber,
+                    this::getFinancieleVasteActiva, BoldNumber,
                     "> 12-15%", Grey,
                     "OMZET", Grey);
         }
 
         addHistoryReportRow(
                 "VLOTTENDE ACTIVA", BoldYellow,
-                d -> Math.round(getVlottendeActiva(d)), BoldYellowNumber);
+                this::getVlottendeActiva, BoldYellowNumber);
 
         addHistoryReportRow(
                 "VOORRADEN", Bold,
-                d -> Math.round(getVoorradenEnBestellingenInUitvoering(d)), BoldNumber,
+                this::getVoorradenBestellingenUitvoering, BoldNumber,
                 "RENDEMENT EIGEN", Bold,
                 "NETTO WINST", BoldBottom,
-                d -> getWinstVerliesBoekjaar(d) / getEigenVermogen(d), PercentStyleBold);
+                this::getRendementEigenVermogen, PercentStyleBold);
 
         addHistoryReportRow(
                 "HANDELSVORDERINGEN", Bold,
-                d -> Math.round(getHandelsvorderingen(d)), BoldNumber,
+                this::getHandelsvorderingen, BoldNumber,
                 "VERMOGEN >?", Bold,
                 "EIGEN VERMOGEN", Bold);
 
         addHistoryReportRow(
                 "ANDERE", Bold,
-                d -> Math.round(getAndereVorderingen(d)), BoldNumber);
+                this::getVorderingenHoogstens1JaarOverigeVorderingen, BoldNumber);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "CASH", Bold,
-                    d -> Math.round(getCash(d)), BoldNumber,
+                    this::getCash, BoldNumber,
                     "ROTATIE", Bold,
                     "OMZET", BoldBottom,
-                    d -> getBedrijfsOpbrengsten(d) / getCapitalEmployed(d), DoubleStyleBold);
+                    this::getRotatie, DoubleStyleBold);
         } else {
             addHistoryReportRow(
                     "CASH", Bold,
-                    d -> Math.round(getCash(d)), BoldNumber,
+                    this::getCash, BoldNumber,
                     "ROTATIE", Grey,
                     "OMZET", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "TOTALE ACTIVA", BoldYellow,
-                d -> Math.round(getTotaleActiva(d)), BoldYellowNumber,
+                this::getTotaleActiva, BoldYellowNumber,
+                "", null,
                 "CAPITAL EMPLOYED", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey);
 
         skipRow();
 
         addHistoryReportRow(
                 "BALANS PASSIVA", BoldGrey,
-                DocumentWrapper::getYear, BoldGrey,
+                this::getYear, BoldGrey,
                 "RENDEMENT OP DE", Bold,
                 "EBIT", BoldBottom,
-                d -> getEBIT(d) / getCapitalEmployed(d), PercentStyleBold);
+                this::getRendementOpIngezetteMiddelen, PercentStyleBold);
 
         addHistoryReportRow(
                 "INGEZETTE MIDDELEN (ROCE)", Bold,
@@ -176,129 +179,142 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportRow(
                 "EIGEN VERMOGEN", BoldYellow,
-                d -> Math.round(getEigenVermogen(d)), BoldYellowNumber,
+                this::getEigenVermogen, BoldYellowNumber,
                 ">WACC(10%?)", BoldBottom,
                 null, BottomNormal,
-                null, BottomNormal);
+                i -> null, BottomNormal);
 
         skipRow();
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "SCHULDEN", BoldYellow,
-                    d -> Math.round(getLangeTermijnFinancieleSchulden(d) + getKorteTermijnSchulden(d) + getProvisies(d)), BoldYellowNumber,
+                    this::getSchulden, BoldYellowNumber,
                     "VOORRAADROTATIE", BoldTop,
                     "VOORRADEN X 365", BoldBottomTop,
-                    d -> Math.round(getVoorraadrotatie(d)), BoldTopNumber);
+                    this::getVoorraadrotatie, BoldTopNumber);
         } else {
             addHistoryReportRow(
                     "SCHULDEN", BoldYellow,
-                    d -> Math.round(getLangeTermijnFinancieleSchulden(d) + getKorteTermijnSchulden(d) + getProvisies(d)), BoldYellowNumber,
+                    this::getSchulden, BoldYellowNumber,
                     "VOORRAADROTATIE", Grey,
                     "VOORRADEN X 365", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "PROVISIES", Bold,
-                d -> Math.round(getProvisies(d)), BoldNumber,
+                this::getProvisies, BoldNumber,
+                "", null,
                 "OMZET", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey);
 
         addHistoryReportRow(
                 "LANGE TERMIJN SCHULDEN", BoldLightGrey,
-                d -> Math.round(getLangeTermijnSchulden(d)), BoldLightGreyNumber);
+                this::getLangeTermijnSchulden, BoldLightGreyNumber);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "FINANCIELE", Bold,
-                    d -> Math.round(getLangeTermijnFinancieleSchulden(d)), BoldNumber,
+                    this::getLangeTermijnFinancieleSchulden, BoldNumber,
                     "KLANTENKREDIET", Bold,
                     "VORDERINGEN X 365", BoldBottom,
-                    d -> Math.round(getKlantenKrediet(d)), BoldNumber);
+                    this::getKlantenKrediet, BoldNumber);
         } else {
             addHistoryReportRow(
                     "FINANCIELE", Bold,
-                    d -> Math.round(getLangeTermijnFinancieleSchulden(d)), BoldNumber,
+                    this::getLangeTermijnFinancieleSchulden, BoldNumber,
                     "KLANTENKREDIET", Grey,
                     "VORDERINGEN X 365", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "ANDERE", Bold,
-                d -> Math.round(getLangeTermijnOverigeSchulden(d)), BoldNumber,
+                this::getLangeTermijnOverigeSchulden, BoldNumber,
                 "DSO", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey,
                 "OMZET", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey);
 
         addHistoryReportRow(
                 "KORTE TERMIJN SCHULDEN", BoldLightGrey,
-                d -> Math.round(getKorteTermijnSchulden(d)), BoldLightGreyNumber);
+                this::getKorteTermijnSchulden, BoldLightGreyNumber);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "FINANCIELE", Bold,
-                    d -> Math.round(getKorteTermijnFinancieleSchulden(d)), BoldNumber,
+                    this::getKorteTermijnFinancieleSchulden, BoldNumber,
                     "LEVERANCIERSKREDIET", Bold,
                     "LEVERANCIERS X 365", BoldBottom,
-                    d -> Math.round(getLeveranciersKrediet(d)), BoldNumber);
+                    this::getLeveranciersKrediet, BoldNumber);
         } else {
             addHistoryReportRow(
                     "FINANCIELE", Bold,
-                    d -> Math.round(getKorteTermijnFinancieleSchulden(d)), BoldNumber,
+                    this::getKorteTermijnFinancieleSchulden, BoldNumber,
                     "LEVERANCIERSKREDIET", Grey,
                     "LEVERANCIERS X 365", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "LEVERANCIERS", Bold,
-                d -> Math.round(getLeveranciers(d)), BoldNumber,
+                this::getLeveranciers, BoldNumber,
                 "DPO", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey,
                 "OMZET", reportStyle.equals(ReportStyle.HISTORIEKNV) ? Bold : Grey);
 
         addHistoryReportRow(
                 "ANDERE", Bold,
-                d -> Math.round(getAndereSchuldenKorteTermijn(d)), BoldNumber);
+                this::getAndereSchuldenKorteTermijn, BoldNumber);
 
         addHistoryReportRow(
                 "TOTALE PASSIVA", BoldYellow,
-                d -> Math.round(getTotalePassiva(d)), BoldYellowNumber,
+                this::getTotalePassiva, BoldYellowNumber,
                 "CASH FLOW", Bold,
                 "NETTO WINST + AFSCHRIJVINGEN", Bold,
-                d -> Math.round(getCashFlow(d)), BoldNumber);
+                this::getCashFlow, BoldNumber);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
+                    "", null,
+                    null, null,
                     "marge / omzet", Bold,
-                    d -> getCashFlow(d) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    "", null,
+                    this::getCashFlowMargeOverOmzet, PercentStyleBold);
         } else {
             addHistoryReportRow(
+                    "", null,
+                    null, null,
                     "marge / omzet", Grey,
-                    d -> "/", Grey);
+                    "", null,
+                    i -> "/", Grey);
         }
 
         skipRow();
 
         addHistoryReportRow(
                 "RESULTATENREKENING", BoldGrey,
-                DocumentWrapper::getYear, BoldGrey,
+                this::getYear, BoldGrey,
                 "FREE CASH FLOW", Bold,
                 "CASH FLOW - INVESTERINGEN", Bold,
-                d -> Math.round(getCashFlow(d) - getInvesteringen(d)), BoldNumber);
+                this::getFreeCashFlow, BoldNumber);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
+                    "", null,
+                    null, null,
                     "marge / omzet", Bold,
-                    d -> (getCashFlow(d) - getInvesteringen(d)) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    "", null,
+                    this::getFreeCashFlowMargeOverOmzet, PercentStyleBold);
         } else {
             addHistoryReportRow(
+                    "", null,
+                    null, null,
                     "marge / omzet", Grey,
-                    d -> "/", Grey);
+                    "", null,
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "BEDRIJFSOPBRENGSTEN", BoldYellow,
-                reportStyle.equals(ReportStyle.HISTORIEKBVBA) ? d -> "/" : d -> Math.round(getBedrijfsOpbrengsten(d)), BoldYellowNumber);
+                reportStyle.equals(ReportStyle.HISTORIEKBVBA) ? i -> "/" : this::getBedrijfsOpbrengsten, BoldYellowNumber);
 
         skipRow();
 
@@ -308,20 +324,20 @@ public class HistoryReportService extends ReportService {
 
         skipRow();
 
-        if (reportStyle.equals(ReportStyle.HISTORIEKBVBA)) {
+        if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "BEDRIJFSKOSTEN", BoldYellow,
-                    d -> "/", BoldYellowNumber,
+                    i -> "/", BoldYellowNumber,
                     "CASH CYCLE", BoldBlue,
                     null, BoldBlue,
-                    d -> Math.round(getVoorraadrotatie(d) + getKlantenKrediet(d) - getLeveranciersKrediet(d)), BoldBlue);
+                    this::getCashCycle, BoldBlueNumber);
         } else {
             addHistoryReportRow(
                     "BEDRIJFSKOSTEN", BoldYellow,
-                    d -> -Math.round(getTotaleBedrijfskosten(d)), BoldYellowNumber,
+                    i -> getTotaleBedrijfskosten(i).negate(), BoldYellowNumber,
                     "CASH CYCLE", Grey,
                     null, Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         skipRow();
@@ -329,22 +345,22 @@ public class HistoryReportService extends ReportService {
         if (reportStyle.equals(ReportStyle.HISTORIEKBVBA)) {
             addHistoryReportRow(
                     "AANKOPEN", Grey,
-                    d -> "/", Grey,
+                    i -> "/", Grey,
                     "CURRENT RATIO", BoldTop,
                     "COURANTE ACTIVA", BoldBottomTop,
-                    d -> getVlottendeActiva(d) / getKorteTermijnSchulden(d), DoubleStyleBoldTop);
+                    this::getLiquiditeitsRatio, DoubleStyleBoldTop);
         } else {
             addHistoryReportRow(
                     "AANKOPEN", Bold,
-                    d -> Math.round(getAankopen(d)), BoldNumber,
+                    i -> getAankopen(i).negate(), BoldNumber,
                     "CURRENT RATIO", BoldTop,
                     "COURANTE ACTIVA", BoldBottomTop,
-                    d -> getVlottendeActiva(d) / getKorteTermijnSchulden(d), DoubleStyleBoldTop);
+                    this::getLiquiditeitsRatio, DoubleStyleBoldTop);
         }
 
         addHistoryReportRow(
                 "TOEGEVOEGDE WAARDE", BoldGreen,
-                d -> Math.round(getToegevoegdeWaarde(d)), BoldGreenNumber,
+                this::getToegevoegdeWaarde, BoldGreenNumber,
                 ">1", Bold,
                 "COURANTE PASSIVA", Bold);
 
@@ -352,14 +368,14 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportRow(
                 "DIENSTEN EN DIVERSE GOEDEREN", Bold,
-                d -> -Math.round(getDienstenEnDiverseGoederen(d)), BoldNumber);
+                i -> getDienstenEnDiverseGoederen(i).negate(), BoldNumber);
 
         addHistoryReportRow(
                 "BRUTOMARGE", BoldGreen,
-                d -> Math.round(getBrutoMarge(d)), BoldGreenNumber,
+                this::getBrutoMarge, BoldGreenNumber,
                 "QUICK RATIO", Bold,
                 "COURANTE ACTIVA - VOORRAAD", BoldBottom,
-                d -> (getVlottendeActiva(d) - getVoorradenEnBestellingenInUitvoering(d)) / getKorteTermijnSchulden(d), DoubleStyleBold);
+                this::getCouranteActiveZonderVoorraad, DoubleStyleBold);
 
         addHistoryReportRow(
                 ">0,7", Bold,
@@ -368,18 +384,18 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportRow(
                 "PERSONEELSKOSTEN", Bold,
-                d -> -Math.round(getPersoneelskosten(d)), BoldNumber);
+                i -> getPersoneelskosten(i).negate(), BoldNumber);
 
         addHistoryReportRow(
                 "ANDERE KOSTEN", Bold,
-                d -> -Math.round(getAndereKosten(d) - getDienstenEnDiverseGoederen(d)), BoldNumber);
+                this::getAndereKostenZonderDienstenEnDiverseGoederen, BoldNumber);
 
         addHistoryReportRow(
                 "EBITDA", BoldGreen,
-                d -> Math.round(getEBITDA(d)), BoldGreenNumber,
+                this::getEBITDA, BoldGreenNumber,
                 "SOLVABILITEIT", Bold,
                 "EIGEN VERMOGEN", BoldBottom,
-                d -> getEigenVermogen(d) / getTotalePassiva(d), PercentStyleBold);
+                this::getSolvabiliteit, PercentStyleBold);
 
         addHistoryReportRow(
                 ">25%", Bold,
@@ -388,37 +404,36 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportRow(
                 "AFSCHRIJVINGEN", Bold,
-                d -> -Math.round(getAfschrijvingen(d)), BoldNumber);
+                i -> getAfschrijvingen(i).negate(), BoldNumber);
 
         addHistoryReportRow(
                 "WAARDEVERMINDERINGEN", Bold,
-                d -> -Math.round(getWaardeVermindering(d)), BoldNumber,
+                i -> getWaardeVermindering(i).negate(), BoldNumber,
                 "GEARING", Bold,
                 "NETTO FINANCIELE SCHULDEN", BoldBottom,
-                d -> (getKorteTermijnFinancieleSchulden(d) + getLangeTermijnFinancieleSchulden(d) - getCash(d))
-                        / getEigenVermogen(d), DoubleStyleBold);
+                this::getGearing, DoubleStyleBold);
 
         addHistoryReportRow(
                 "<1", BoldBottom,
                 "EIGEN VERMOGEN", BoldBottom,
-                null, BottomNormal);
+                i -> null, BottomNormal);
 
         addHistoryReportRow(
                 "BEDRIJFSWINST(EBIT)", BoldYellow,
-                d -> Math.round(getEBIT(d)), BoldYellowNumber);
+                this::getEBIT, BoldYellowNumber);
 
         skipRow();
 
         addHistoryReportRow(
                 "FINANCIELE RESULTATEN", Bold,
-                d -> Math.round(getFinancieleResultaten(d)), BoldNumber,
+                this::getFinancieleResultaten, BoldNumber,
                 "FINANCIELE LASTEN:", BoldBottomTop,
                 null, BoldBottomTop,
-                d -> Math.round(getFinancieleKosten(d)), BoldLightGreyNumber);
+                this::getFinancieleKosten, BoldLightGreyNumber);
 
         addHistoryReportRow(
                 "UITZONDERLIJKE RESULTATEN", Bold,
-                d -> Math.round(getUitzonderlijkeResultaten(d)), BoldNumber);
+                this::getUitzonderlijkeResultaten, BoldNumber);
 
         addHistoryReportRow(
                 "FINANCIERINGSLAST", BoldTop,
@@ -427,7 +442,7 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportRow(
                 "RESULTAAT VOOR BELASTINGEN", BoldYellow,
-                d -> Math.round(getResultaatVoorBelastingen(d)), BoldYellowNumber,
+                this::getResultaatVoorBelastingen, BoldYellowNumber,
                 "<4", Bold,
                 "EBITDA", Bold);
 
@@ -435,26 +450,26 @@ public class HistoryReportService extends ReportService {
 
         addHistoryReportRow(
                 "BELASTINGEN", Bold,
-                d -> -Math.round(getBelastingen(d)), BoldNumber,
+                i -> getBelastingen(i).inParenthesis().negate(), BoldNumber,
                 "INTRESTDEKKING", Bold,
                 "EBITDA", BoldBottom,
-                d -> Math.round(getEBITDA(d) / getFinancieleKosten(d)), BoldNumber);
+                this::getIntrestdekking, BoldNumber);
 
         addHistoryReportRow(
                 ">1", BoldBottom,
                 "FINANCIELE LASTEN", BoldBottom,
-                null, BottomNormal);
+                i -> null, BottomNormal);
 
         addHistoryReportRow(
                 "NETTO WINST", BoldYellow,
-                d -> Math.round(getWinstVerliesBoekjaar(d)), BoldYellowNumber);
+                this::getWinstVerliesBoekjaar, BoldYellowNumber);
 
         skipRow();
 
         addHistoryReportRow(
                 "Kostenstructuur", BoldTop,
                 null, BoldTop,
-                d -> null, BoldTop);
+                i -> null, BoldTop);
 
         addHistoryReportRow(
                 "EXTRA INFO", Bold,
@@ -467,49 +482,49 @@ public class HistoryReportService extends ReportService {
             addHistoryReportRow(
                     "Aankopen/omzet", Bold,
                     "AK/omzet", Bold,
-                    d -> getAankopen(d) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    this::getAankopenOverOmzet, PercentStyleBold);
         } else {
             addHistoryReportRow(
                     "Aankopen/omzet", Grey,
                     "AK/omzet", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         addHistoryReportRow(
                 "Investeringen", BoldBottomTop,
-                d -> Math.round(getInvesteringen(d)), NumberBottomTop);
+                this::getInvesteringen, NumberBottomTop);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "Investeringen/omzet", BoldBottomTop,
-                    d -> getInvesteringen(d) / getBedrijfsOpbrengsten(d), PercentStyleBoldBottomTop,
+                    this::getInvesteringenOverOmzet, PercentStyleBoldBottomTop,
                     "Personeelskosten/omzet", Bold,
                     "PK/omzet", Bold,
-                    d -> getPersoneelskosten(d) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    this::getPersoneelskostenOverOmzet, PercentStyleBold);
         } else {
             addHistoryReportRow(
                     "Investeringen/omzet", Grey,
-                    d -> "/", Grey,
+                    i -> "/", Grey,
                     "Personeelskosten/omzet", Grey,
                     "PK/omzet", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
 
         }
 
         addHistoryReportRow(
                 "Investeringen/brutomarge", BoldBottomTop,
-                d -> getInvesteringen(d) / getBrutoMarge(d), PercentStyleBoldBottomTop);
+                this::getInvesteringenOverBrutomarge, PercentStyleBoldBottomTop);
 
         if (reportStyle.equals(ReportStyle.HISTORIEKNV)) {
             addHistoryReportRow(
                     "Andere kosten/omzet", Bold,
                     "andere/omzet", Bold,
-                    d -> getAndereKosten(d) / getBedrijfsOpbrengsten(d), PercentStyleBold);
+                    this::getAndereKostenOverOmzet, PercentStyleBold);
         } else {
             addHistoryReportRow(
                     "Andere kosten/omzet", Grey,
                     "andere/omzet", Grey,
-                    d -> "/", Grey);
+                    i -> "/", Grey);
         }
 
         skipRow();
@@ -517,19 +532,19 @@ public class HistoryReportService extends ReportService {
         addHistoryReportRow(
                 "Personeelskosten/brutomarge", Bold,
                 "PK/brutomarge", Bold,
-                d -> getPersoneelskosten(d) / getBrutoMarge(d), PercentStyleBold);
+                this::getPersoneelskostenOverBrutomarge, PercentStyleBold);
 
         skipRow();
 
         addHistoryReportRow(
                 "Andere kosten/brutomarge", BoldBottom,
                 "AK/brutomarge", BoldBottom,
-                d -> getAndereKosten(d) / getBrutoMarge(d), PercentStyleBoldBottom);
+                this::getAndereKostenOverBrutomarge, PercentStyleBoldBottom);
     }
 
     @Override
     protected void initializeStyles() {
-        HSSFFont fontBold = workbook.createFont();
+        XSSFFont fontBold = workbook.createFont();
         fontBold.setBold(true);
 
         Bold = workbook.createCellStyle();
@@ -606,6 +621,14 @@ public class HistoryReportService extends ReportService {
         BoldBlue.setBorderBottom(BorderStyle.THIN);
         BoldBlue.setBorderTop(BorderStyle.THIN);
 
+        BoldBlueNumber = workbook.createCellStyle();
+        BoldBlueNumber.setFont(fontBold);
+        BoldBlueNumber.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+        BoldBlueNumber.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        BoldBlueNumber.setBorderBottom(BorderStyle.THIN);
+        BoldBlueNumber.setBorderTop(BorderStyle.THIN);
+        BoldBlueNumber.setDataFormat(numberFormatter.getFormat("### ### ##0"));
+
         BoldBottom = workbook.createCellStyle();
         BoldBottom.setFont(fontBold);
         BoldBottom.setBorderBottom(BorderStyle.THIN);
@@ -672,4 +695,152 @@ public class HistoryReportService extends ReportService {
         PercentStyleBoldBottomTop.setBorderBottom(BorderStyle.THIN);
         PercentStyleBoldBottomTop.setBorderTop(BorderStyle.THIN);
     }
+
+    //<editor-fold desc="addHistoryReportRow">
+
+    private void addHistoryReportHeaderRow(XSSFCellStyle titleStyle, XSSFCellStyle documentStyle1, XSSFCellStyle documentStyle2) {
+        XSSFRow row = addRow(reportSheet);
+
+        addCell(row, "NAAM", titleStyle);
+        addCell(row, "PER", titleStyle);
+        addCell(row, "31/12", titleStyle);
+
+        skipCell(documentCount - 1);
+
+        addCell(row, null, documentStyle1);
+        addCell(row, null, documentStyle1);
+
+        for (DocumentWrapper document : documents) {
+            addCell(row, document.getYear(), documentStyle2);
+        }
+    }
+
+    private void addHistoryReportRow(String text1, XSSFCellStyle textStyle1, Function<Integer, String> formulaFunction1, XSSFCellStyle valueStyle1) {
+        addHistoryReportRow(text1, textStyle1, formulaFunction1, valueStyle1, null, null, null, null, null, null);
+    }
+
+    private void addHistoryReportRow(String text2, XSSFCellStyle textStyle2, String text3, XSSFCellStyle textStyle3, Function<Integer, String> formulaFunction2, XSSFCellStyle valueStyle2) {
+        addHistoryReportRow(null, null, null, null, text2, textStyle2, text3, textStyle3, formulaFunction2, valueStyle2);
+    }
+
+    private void addHistoryReportRow(String text1, XSSFCellStyle textStyle1, Function<Integer, String> formulaFunction1, XSSFCellStyle valueStyle1, String text2, XSSFCellStyle textStyle2, String text3, XSSFCellStyle textStyle3) {
+        addHistoryReportRow(text1, textStyle1, formulaFunction1, valueStyle1, text2, textStyle2, text3, textStyle3, null, null);
+    }
+
+    private void addHistoryReportRow(String text1, XSSFCellStyle textStyle1, Function<Integer, String> formulaFunction1, XSSFCellStyle valueStyle1, String text2, XSSFCellStyle textStyle2, String text3, XSSFCellStyle textStyle3, Function<Integer, String> formulaFunction2, XSSFCellStyle valueStyle2) {
+        XSSFRow row = addRow(reportSheet);
+        addHistoryRowTextCell(row, text1, textStyle1);
+        addHistoryRowDocumentValueCell(row, formulaFunction1, valueStyle1);
+        skipCell();
+        addHistoryRowTextCell(row, text2, textStyle2);
+        addHistoryRowTextCell(row, text3, textStyle3);
+        addHistoryRowDocumentValueCell(row, formulaFunction2, valueStyle2);
+    }
+
+    private void addHistoryRowTextCell(XSSFRow row, String text, XSSFCellStyle cellStyle) {
+        if (text != null || cellStyle != null) addCell(row, text, cellStyle);
+        else skipCell();
+    }
+
+    private void addHistoryRowDocumentValueCell(XSSFRow row, Function<Integer, String> formulaFunction1, XSSFCellStyle cellStyle) {
+        if (formulaFunction1 != null || cellStyle != null) {
+            for (int i = 0; i < documentCount; i++) {
+                addReferenceCell(row, formulaFunction1 == null ? "/" : formulaFunction1.apply(i), cellStyle);
+            }
+        } else skipCell(documentCount);
+    }
+
+    //</editor-fold>
+
+    // <editor-fold desc="getters">
+
+    private String getEBITMarge(int i) {
+        return getEBIT(i).inParenthesis().dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getEBITDAMarge(int i) {
+        return getEBITDA(i).inParenthesis().dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getRendementEigenVermogen(int i) {
+        return getWinstVerliesBoekjaar(i).dividedBy(getEigenVermogen(i));
+    }
+
+    private String getRotatie(int i) {
+        return getBedrijfsOpbrengsten(i).dividedBy(getCapitalEmployed(i).inParenthesis());
+    }
+
+    private String getRendementOpIngezetteMiddelen(int i) {
+        return getEBIT(i).inParenthesis().dividedBy(getCapitalEmployed(i).inParenthesis());
+    }
+
+    private String getSchulden(int i) {
+        return getLangeTermijnFinancieleSchulden(i).add(getKorteTermijnSchulden(i)).add(getProvisies(i));
+    }
+
+    private String getCashFlowMargeOverOmzet(int i) {
+        return getCashFlow(i).inParenthesis().dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getFreeCashFlow(int i) {
+        return getCashFlow(i).subtract(getInvesteringen(i).inParenthesis());
+    }
+
+    private String getFreeCashFlowMargeOverOmzet(int i) {
+        return getFreeCashFlow(i).dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getCashCycle(int i) {
+        return getVoorraadrotatie(i).add(getKlantenKrediet(i)).subtract(getLeveranciersKrediet(i));
+    }
+
+    private String getCouranteActiveZonderVoorraad(int i) {
+        return getVlottendeActiva(i).subtract(getVoorradenBestellingenUitvoering(i)).inParenthesis().dividedBy(getKorteTermijnSchulden(i).inParenthesis());
+    }
+
+    private String getAndereKostenZonderDienstenEnDiverseGoederen(int i) {
+        return getAndereKosten(i).inParenthesis().subtract(getDienstenEnDiverseGoederen(i)).inParenthesis().negate();
+    }
+
+    private String getSolvabiliteit(int i) {
+        return getEigenVermogen(i).dividedBy(getTotalePassiva(i));
+    }
+
+    private String getGearing(int i) {
+        return getKorteTermijnFinancieleSchulden(i).add(getLangeTermijnFinancieleSchulden(i)).subtract(getCash(i)).inParenthesis().dividedBy(getEigenVermogen(i));
+    }
+
+    private String getIntrestdekking(int i) {
+        return getEBITDA(i).inParenthesis().dividedBy(getFinancieleKosten(i));
+    }
+
+    private String getAankopenOverOmzet(int i) {
+        return getAankopen(i).dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getInvesteringenOverOmzet(int i) {
+        return getInvesteringen(i).inParenthesis().dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getPersoneelskostenOverOmzet(int i) {
+        return getPersoneelskosten(i).dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getAndereKostenOverOmzet(int i) {
+        return getAndereKostenZonderDienstenEnDiverseGoederen(i).inParenthesis().dividedBy(getBedrijfsOpbrengsten(i));
+    }
+
+    private String getInvesteringenOverBrutomarge(int i) {
+        return getInvesteringen(i).inParenthesis().dividedBy(getBrutoMarge(i).inParenthesis());
+    }
+
+    private String getPersoneelskostenOverBrutomarge(int i) {
+        return getPersoneelskosten(i).dividedBy(getBrutoMarge(i).inParenthesis());
+    }
+
+    private String getAndereKostenOverBrutomarge(int i) {
+        return getAndereKostenZonderDienstenEnDiverseGoederen(i).inParenthesis().dividedBy(getBrutoMarge(i).inParenthesis());
+    }
+
+    // </editor-fold>
 }
